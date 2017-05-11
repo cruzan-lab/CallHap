@@ -34,9 +34,14 @@ echo "Running CallHap Preprocessing using program config $1 and run config $2 at
 for sampleIter in $(seq 0 $(($NumberSamples-1)) ); do
     if [ "${Mode[$sampleIter]}" = "pe" ]; then
         # PE Processing
+        echo "Preprocessing"
+        # Adapter trimming:
+        nice -n 5 $cutadaptPath -a $inAdapter1 -A $inAdapter2 -o ${RGSMs[$sampleIter]}_R1_at.fastq -p ${RGSMs[$sampleIter]}_R2_at.fastq ${inputRead1[$sampleIter]} ${inputRead2[$sampleIter]}
+        # Quality trimming:
+        nice -n 5 $sicklePath pe -f ${RGSMs[$sampleIter]}_R1_at.fastq -r ${RGSMs[$sampleIter]}_R2_at.fastq -o ${RGSMs[$sampleIter]}_R1_at_qt.fastq -p ${RGSMs[$sampleIter]}_R2_at_qt.fastq -t sanger -s ${RGSMs[$sampleIter]}_extras.fastq -q $minBaseQuality -g
         echo "Aligning"
         # Alignment with BWA:
-        nice -n 5 $bwaPath mem -M ${Refs[$sampleIter]} ${inputRead1[$sampleIter]} ${inputRead2[$sampleIter]} > ${RGSMs[$sampleIter]}_pe.sam
+        nice -n 5 $bwaPath mem -M ${Refs[$sampleIter]} ${RGSMs[$sampleIter]}_R1_at_qt.fastq ${RGSMs[$sampleIter]}_R2_at_qt.fastq > ${RGSMs[$sampleIter]}_pe.sam
         # Sort the alignment:
         # Also filter out unmapped reads
         echo "Sorting"
@@ -54,15 +59,21 @@ for sampleIter in $(seq 0 $(($NumberSamples-1)) ); do
         # Perform local realingment around indels:
         nice -n 5 java -jar $GATKpath -T RealignerTargetCreator -R ${Refs[$sampleIter]} -I ${RGSMs[$sampleIter]}_pe.sort.rg.bam -o ${RGSMs[$sampleIter]}_pe.sort.rg.intervals
         nice -n 5 java -jar $GATKpath -T IndelRealigner -R ${Refs[$sampleIter]} -I ${RGSMs[$sampleIter]}_pe.sort.rg.bam -targetIntervals ${RGSMs[$sampleIter]}_pe.sort.rg.intervals -o ${RGSMs[$sampleIter]}_pe.sort.rg.ra.bam -dt NONE --maxReadsForRealignment 200000
+        rm *.fastq.gz
         rm *.intervals
         rm *.rg.bam
         rm *.sort.bam
         rm *.sam
     elif [ "${Mode[$sampleIter]}" = "se" ]; then
     #SE Processing
+        echo "Preprocessing"
+        # Adapter trimming with cutadapt:
+        nice -n 5 $cutadaptPath -a $inAdapter1 -o ${RGSMs[$sampleIter]}_at.fastq.gz ${inputRead1[$sampleIter]}
+        # Quality trimming with sickle:
+        nice -n 5 $sicklePath se -f ${RGSMs[$sampleIter]}_at.fastq.gz -o ${RGSMs[$sampleIter]}_at_qt.fastq.gz -t sanger -q $minBaseQuality -g
         echo "Aligning"
         # Alignment with BWA:
-        nice -n 5 $bwaPath mem -M ${Refs[$sampleIter]} ${inputRead1[$sampleIter]} > ${RGSMs[$sampleIter]}_se.sam
+        nice -n 5 $bwaPath mem -M ${Refs[$sampleIter]} ${RGSMs[$sampleIter]}_R1_at_qt.fastq.gz > ${RGSMs[$sampleIter]}_se.sam
         echo "Sorting"
         # Sort the alignment:
         # Also filter out unmapped reads
@@ -79,6 +90,7 @@ for sampleIter in $(seq 0 $(($NumberSamples-1)) ); do
         # Perform local realingment around indels:
         nice -n 5 java -jar $GATKpath -T RealignerTargetCreator -R ${Refs[$sampleIter]} -I ${RGSMs[$sampleIter]}_se.sort.rg.bam -o ${RGSMs[$sampleIter]}_se.sort.rg.intervals 
         nice -n 5 java -jar $GATKpath -T IndelRealigner -R ${Refs[$sampleIter]} -I ${RGSMs[$sampleIter]}_se.sort.rg.bam -targetIntervals ${RGSMs[$sampleIter]}_se.sort.rg.intervals -o ${RGSMs[$sampleIter]}_se.sort.rg.ra.bam -dt NONE --maxReadsForRealignment 200000
+        rm *.fastq.gz
         rm *.intervals
         rm *.rg.bam
         rm *.sort.bam

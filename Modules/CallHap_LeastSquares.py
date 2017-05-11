@@ -1,15 +1,23 @@
+#!/usr/bin/env python
+# CallHap CallHap_LeastSquares.py
+# By Brendan Kohrn
+# 3/20/2017
+#
+# The main Sum Least Squares method for CallHap_HapCallr
+
 import numpy as np
 import decimal as dec
 from General import *
 
 def Find_Freqs(A, b, p):
-    '''Find the frquency of various haplotypes in a pool.  A is the haplotypes matrix, b is the SNP Frequency matrix, and p is pool size'''
+    '''Find the frequency of various haplotypes in a pool.  A is the haplotypes 
+    matrix, b is the SNP Frequency matrix, and p is pool size'''
     #Set variables for number of haplotypes and number of SNPs
     M = A.shape[0]
     N = A.shape[1]
     # Create an empty numpy array for the current solution
     x = npDecZeros(1, N)
-    # Create an empty numpy array to hold the lalst solution
+    # Create an empty numpy array to hold the last solution
     lastX = npDecZeros(1, N)
     # Create dummy variables to hold the last and current sum squared residuals
     currentSSR = -1
@@ -19,12 +27,14 @@ def Find_Freqs(A, b, p):
     currentSSR, x = InitialTest(A, b, x, currentSSR, M, N, p)
     lastSSR = currentSSR
     lastX = np.copy(x)
-    # Create finished switch and counter to check for infinate loops
+    # Create finished switch and counter to check for infinite loops
     finished = False
     # Iterations:
     while not finished:
         # invoke the mail loop
         currentSSR, x = mainLoop(A, b, x, N, M, currentSSR, p)
+        # If the SSR (Sum Squared Residuals; equivalent to RSS) value increases
+        # on this loop, finish
         if currentSSR >= lastSSR:
             finished = True
         else:
@@ -57,7 +67,8 @@ def SSR(A, xSSR, b):
     if type(b) == list:
         out = sum([resid**2 for resid in np.subtract(np.sum(A * xSSR, 1), b)])
     else:
-        out = sum([resid**2 for resid in np.subtract(np.sum(A * xSSR, 1), b.ravel())])
+        out = sum([resid**2 for resid in np.subtract(np.sum(A * xSSR, 1), 
+                                                     b.ravel())])
     return(out)
 
 def mainLoop(A, b, xML, N, M, currSSR, p):
