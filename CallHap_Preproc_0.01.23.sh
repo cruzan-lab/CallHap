@@ -2,9 +2,11 @@
 
 #This is a template for all steps prior to the CallHap programs
 
-# Version 0.01.22
+# Version 0.01.24
 # 
 # Change Log:
+#     V0.01.24
+#          Fixed date/time reporting
 #     V0.01.13
 #          Raised realignment limit for indel_realigner
 #          Cleaned up unnecessary lines
@@ -27,7 +29,7 @@ source $2
 # Good sorted header for later header replacement
 # This will eventually be in the config file.
 auxileryHdr=LasburSCircHeadr.sam
-startDate=date
+startDate=$(date)
 echo "Running CallHap Preprocessing using program config $1 and run config $2 at $startDate.  "
 for sampleIter in $(seq 0 $(($NumberSamples-1)) ); do
     if [ "${Mode[$sampleIter]}" = "pe" ]; then
@@ -96,5 +98,5 @@ for sampleIter in $(seq 0 $(($NumberSamples-1)) ); do
     fi
 done
 
-endDate=date
+endDate=$(date)
 echo "Run ran from $startDate to $endDate"
