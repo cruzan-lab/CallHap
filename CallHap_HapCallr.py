@@ -12,6 +12,7 @@ from argparse import ArgumentParser
 import time
 import sys
 import random
+import os
 from multiprocessing import Pool
 from Modules.VCF_parser import *
 from Modules.CorrHaps import *
@@ -22,7 +23,7 @@ from Modules.parallel import *
 
 progVersion = "V1.01.00"
 
-def  MakeHaps(inSnpSets, inPoolSize, inOldHaps, inInitialFreqs, InitialHaps):
+def  MakeHaps(inSnpSets, inOldHaps, inInitialFreqs, InitialHaps):
     # Module to create new haplotypes using input SNP sets and haplotype set.
     # Figure out what the less common identity for this SNP is in the current 
     # haplotype set
@@ -38,7 +39,7 @@ def  MakeHaps(inSnpSets, inPoolSize, inOldHaps, inInitialFreqs, InitialHaps):
                       else False for x in xrange(len(inOldHaps))]
     if True in containingHaps: # If this SNP is in a known haplotype
         # Determine which SNPs can be legally changed in each haplotype
-        legalSnpsByHap = ValidSnpsFromPhylogeny(inOldHaps)
+        legalSnpsByHap = ValidSnpsFromPhylogeny(inOldHaps, InitialHaps)
         # Check which haplotypes the target SNP can be legally changed in
         # These are the ones that could be used to create new source haplotypes
         usableHaps = [True if inSnpSets[0] in legalSnpsByHap[hap] else False 
@@ -106,7 +107,8 @@ def  MakeHaps(inSnpSets, inPoolSize, inOldHaps, inInitialFreqs, InitialHaps):
                     for iter1 in inSnpSets:
                         possibleHaps[freqSet][-1][iter1] = 1 - possibleHaps[freqSet][-1][iter1]
 
-                    if possibleFreqs[freqSet][baseFreq[newFreq]] == 0:
+                    if (int(possibleFreqs[freqSet][baseFreq[newFreq]]) == 0 
+                            and baseFreq[newFreq] >= InitialHaps):
                         possibleFreqs[freqSet].pop(baseFreq[newFreq])
                         possibleHaps[freqSet].pop(baseFreq[newFreq])
                 else:
@@ -122,15 +124,16 @@ def  MakeHaps(inSnpSets, inPoolSize, inOldHaps, inInitialFreqs, InitialHaps):
                         )
                     for iter1 in inSnpSets:
                         possibleHaps[-1][-1][iter1] = 1 - possibleHaps[-1][-1][iter1]
-                    if (possibleFreqs[freqSet][baseFreq[newFreq]] == 0 
-                        and baseFreq[newFreq] >= InitialHaps):
+                    if (int(possibleFreqs[freqSet][baseFreq[newFreq]]) == 0 
+                            and baseFreq[newFreq] >= InitialHaps):
                         possibleFreqs[freqSet].pop(baseFreq[newFreq])
                         possibleHaps[freqSet].pop(baseFreq[newFreq])
             newFreq += 1
         freqSet += 1
     return(possibleHaps)
 
-def CallHapMain(OrderNumber, o):
+def CallHapMain(OrderNumber, o, resume=False):
+
     print("Starting Random Order %s/%s" % (str(OrderNumber + 1), 
                                            str(o.numRand)))
     # Load haplotypes
@@ -175,12 +178,12 @@ def CallHapMain(OrderNumber, o):
     baseResiduals = [[]]
     # Calculate RSS for each pool
     for poolIter in xrange(numPools):
-        tmpSol = Find_Freqs(bestArray, SnpFreqs[:,poolIter], o.poolSize)
+        tmpSol = Find_Freqs(bestArray, SnpFreqs[:,poolIter], poolSizes[poolIter])
         baseSLSq.append(tmpSol[1])
         baseFreqs.append(tmpSol[0])
         baseResiduals[0].append(
             np.array([[x] for x in list(residuals(tmpSol[0][0],bestArray, 
-                          SnpFreqs[:,poolIter],o.poolSize))])
+                          SnpFreqs[:,poolIter],poolSizes[poolIter]))])
             )
     # Calculate total per SNP RSS values for all SNPs; method for deterministic
     # ordering
@@ -194,8 +197,6 @@ def CallHapMain(OrderNumber, o):
     random.shuffle(snpCombins3)
     snpCombins3 = [y for y in sorted(snpCombins3, 
         key = lambda x: snpFreqsTotal[x[0]], reverse = True)]
-    print("SNP Order %s/%s: \n%s" % (str(OrderNumber + 1), 
-                                     str(o.numRand), snpCombins3))
     
     #Find base average RSS value
     baseRSS = sum(baseSLSq)/len(baseSLSq)
@@ -213,166 +214,255 @@ def CallHapMain(OrderNumber, o):
     # right now.  It will be cleaned up in the future
     bestAIC = [baseRSS]
     usedSnps = 0
+    iterationsStartPoint=0
+    targetUsedSNPs = 0
+    if o.resume:
+        print("Restarting order %s" % OrderNumber)
+        #try resuming this order
+        # if this order cannot be resumed, pass
+        try:
+            print("Opening file %s_save%s.tmp" % (o.outPrefix, OrderNumber))
+            restartInput = open("%s_save%s.tmp" % (o.outPrefix, OrderNumber),"rb")
+            line = restartInput.readline().strip()
+            outputList = []
+            if line == "Outputs":
+                print("Order %s does not need restarting" % str(OrderNumber + 1))
+                line = restartInput.readline().strip()
+                while "#" not in line:
+                    linebins = line.split()
+                    outputList.append([])
+                    outputList[-1].append([int(x) for x in linebins[:-1]])
+                    outputList[-1].append(float(linebins[-1]))
+                    line = restartInput.readline().strip()
+                restartInput.close()
+                print("Outputs from order %s/%s:\n%s" % (str(OrderNumber + 1),str(o.numRand),str(outputList)))
+                
+                return(outputList)
+            while line != "":
+                if line=="Order":
+                    print("Loading SNPs for Order %s" % str(OrderNumber))
+                    line = restartInput.readline().strip().split()
+                    snpCombins3 = [[int(x)] for x in line]
+                elif line == "Iter":
+                    print("Loading iteration number for order %s" % str(OrderNumber))
+                    line = restartInput.readline().strip()
+                    iterationsStartPoint= int(line)
+                elif line=="Used":
+                    print("Loading used SNPs for order %s" % str(OrderNumber))
+                    line = restartInput.readline().strip()
+                    targetUsedSNPs = int(line)
+                elif line=="potHapSets":
+                    print("Loading pot hap sets for order %s" % str(OrderNumber))
+                    line = restartInput.readline().strip()
+                    potHapSets = []
+                    while "#" not in line:
+                        print(line)
+                        potHapSets.append([DecHapToNPHap(int(x)) for x in line.split()])
+                        line = restartInput.readline().strip()
+                elif line=="fullFreqs":
+                    print("loading fullFreqs for order %s" % str(OrderNumber))
+                    fullFreqs = []
+                    line = restartInput.readline().strip()
+                    while "#" not in line:
+                        fullFreqs.append([int(x) for x in line.split()])
+                        line = restartInput.readline().strip()
+                elif line=="AIC":
+                    print("Loading AICs for order %s" % str(OrderNumber))
+                    line=restartInput.readline().strip()
+                    bestAIC = []
+                    while "#" not in line:
+                        bestAIC.append(float(line))
+                        line=restartInput.readline().strip()
+                else:
+                    pass
+                line = restartInput.readline().strip()
+            numHaps = [len(x) for x in potHapSets]
+            restartInput.close()
+        except IOError:
+            print("Order %s hasn't started yet" % (str(OrderNumber + 1)))     
+    print("SNP Order %s/%s: \n%s" % (str(OrderNumber + 1), 
+                                     str(o.numRand), snpCombins3))
     # Start adding SNPs
     # In the case of multiple iterations:
-    for iteration in xrange(o.numIterations):
+    for iteration in xrange(iterationsStartPoint, o.numIterations):
         # Legacy line from when I was grouping SNPs based on correlation, 
         # or residual, or frequency
         for combin in snpCombins3:
-            # Keep track of where in the list of SNPs I am so the user knows 
-            # something's happening
-            usedSnps += 1
-            # Test if this SNP combination has any non-zero residuals
-            useCombin = False
-            for hapSetIter in xrange(baseNumHapSets):
-                for population in xrange(numPools):
-                    if abs(round(
-                            20*baseResiduals[hapSetIter][population][combin[0]]
-                            )) > 0:
-                        useCombin = True
-            # If this SNP combination has non-zero residuals:
-            if useCombin:
-                newPotHapSets = []
-                potHapSetsAIC = []
-                sourceHapSet = []
-                newFullFreqs = []
-                # Find options for adding this SNP set:
-                currentHapSet = 0
-                snpRes = []
-                for hapSet in potHapSets:
-                    newPotHaps = MakeHaps(combin, o.poolSize, copy(hapSet), 
-                                          fullFreqs[0], numHapsInitial)
-                    SLSqs = []
-                    Freqs = []
-                    testAICList = []
-                    maxRSSList = []
-                    srcHap = []
-                    # Find the average SLSq for each pot hap set
-                    newPotHaps2 = []
-                    intermediate = []
-                    for solverIter1 in xrange(len(newPotHaps)):
-                        intermediate.append(
-                            easyConcat(newPotHaps[solverIter1])
-                            )
-                    cleanedIntermediate = [x for x in intermediate 
-                                           if not x is None]                
-                    func = partial(massFindFreqs, inSnpFreqs=SnpFreqs, 
-                                   p=o.poolSize)
-                    result = []
-                    for solverIter in xrange(len(cleanedIntermediate)):
-                        result.append(func(cleanedIntermediate[solverIter]))
-                    tmpSols = [x for x in result if not x is None]
-                    
-                    # Determine which solutions (and thus haplotypes) produce 
-                    # an improvement in RSS value
-                    testAICList = [x for x in xrange(len(tmpSols)) 
-                                   if tmpSols[x][2] <= bestAIC[currentHapSet]]
-                    # Keep track of the source haplotye set for these solutions
-                    srcHap = [currentHapSet for x in xrange(len(testAICList))]
-                    # Calculate per SNP residuals to test if improvement was 
-                    # enough to keep this SNPs solutions
-                    newResiduals = []
-                    changedResids = []
-                    SnpResiduals = []
-                    solIter = 0
-                    for sol in tmpSols:
-                        newFullFreqs.append(
-                            [0 for x in xrange(len(sol[1][0][0]))]
-                            )
-                        for testIter in xrange(len(newFullFreqs[-1])):
-                            for testIter2 in xrange(numPools):
-                                if sol[1][testIter2][0,testIter] > 0:
-                                    newFullFreqs[-1][testIter] = 1
-                                newResiduals.append(
-                                  np.array([[x] 
-                                  for x in list(residuals(sol[1][testIter2][0],
-                                  np.concatenate([np.transpose(y[np.newaxis]) 
-                                  for y in newPotHaps[solIter]], axis=1), 
-                                  SnpFreqs[:,testIter2],o.poolSize))])
-                                  )
-                        # Calculate per SNP RSS values
-                        SnpResiduals.append(
-                            [sum([newResiduals[poolIter][x]**2 
-                            for poolIter in xrange(numPools)])/numPools 
-                            for x in xrange(numSNPs)]
-                            )
-                        solIter += 1
-                    snpRes1 = [SnpResiduals[x][combin[0]] 
-                               for x in xrange(len(tmpSols))]
-                    if len(testAICList) > 0:
-                        # Filter to only the best solutions out of all proposed
-                        # solutions based on this haplotype set
-                        # Sort solutions better than starting RSS by RSS value, 
-                        # from lowest to highest
-                        testIndex = sorted(testAICList, 
-                                           key=lambda x: tmpSols[x][2])
-                        # If no best solution for this SNP exists, the best 
-                        # solution for this 
-                        if len(potHapSetsAIC) == 0:
-                            testFreq = tmpSols[testIndex[0]][2]
-                        # If the best RSS from this solution is worse than the 
-                        # best RSS so far proposed, use the best RSS so far 
-                        # proposed
-                        elif tmpSols[testIndex[0]][2] >= min(potHapSetsAIC):
-                            testFreq = min(potHapSetsAIC)
-                        # Othrewise, use the best RSS value from this SNP
-                        else:
-                            testFreq = tmpSols[testIndex[0]][2]
-                        # If this RSS value represents an improvement, sort and
-                        # save solutions
-                        if testFreq < bestAIC[currentHapSet]:
-                            iter1 = 0
-                            minAICIndex = []
-                            continueLoop = True
-                            # Save all solutions (and thus potential haplotype
-                            # sets) that represent an improvement in RSS value
-                            while (iter1 < len(testIndex) and 
-                                   tmpSols[testIndex[iter1]][2] <= testFreq):
-                                newPotHapSets.append(
-                                    copy(newPotHaps[testIndex[iter1]])
-                                    )
-                                potHapSetsAIC.append(
-                                    tmpSols[testIndex[iter1]][2]
-                                    )
-                                sourceHapSet.append(currentHapSet)
-                                snpRes.append(snpRes1[testIndex[iter1]])
-                                iter1 += 1
-                        else:
-                            minAICIndex = []
-                    # Next haplotype set
-                    currentHapSet += 1
-                # Check if the ending residual values for a SNP are too high
-                continueCheck = [False if snpRes[x] >= o.highResidual else True 
-                                 for x in xrange(len(snpRes))]
-                # Sort potential haplotype sets by RSS value
-                bestAICIdx = sorted(range(len(newPotHapSets)), 
-                                    key=lambda x: potHapSetsAIC[x])
-                # Filter solutions based on RSS values, keeping only the lowest 
-                # RSS values
-                if len(bestAICIdx) > 0 and True in continueCheck:
-                    bestFreq = potHapSetsAIC[bestAICIdx[0]]
-                    potHapSets = []
-                    bestAIC = []
-                    iter1 = 0
-                    minCtr = 0
-                    newSourceHap = []
-                    potHapSetsMaxRSS = []
-                    while  iter1 < len(bestAICIdx):
-                        if (potHapSetsAIC[bestAICIdx[iter1]] == bestFreq and 
-                                snpRes[bestAICIdx[iter1]] < o.highResidual):
-                            minCtr += 1
-                            potHapSets.append(
-                                copy(newPotHapSets[bestAICIdx[iter1]])
+            if usedSnps < targetUsedSNPs:
+                usedSnps += 1
+            else:
+                # Keep track of where in the list of SNPs I am so the user knows 
+                # something's happening
+                usedSnps += 1
+                # Test if this SNP combination has any non-zero residuals
+                useCombin = False
+                for hapSetIter in xrange(baseNumHapSets):
+                    for population in xrange(numPools):
+                        if abs(round(
+                                20*baseResiduals[hapSetIter][population][combin[0]]
+                                )) > 0:
+                            useCombin = True
+                # If this SNP combination has non-zero residuals:
+                if useCombin:
+                    newPotHapSets = []
+                    potHapSetsAIC = []
+                    newFullFreqs = []
+                    # Find options for adding this SNP set:
+                    currentHapSet = 0
+                    snpRes = []
+                    for hapSet in potHapSets:
+                        newPotHaps = MakeHaps(combin, copy(hapSet), 
+                                              fullFreqs[0], numHapsInitial)
+                        SLSqs = []
+                        Freqs = []
+                        testAICList = []
+                        maxRSSList = []
+                        srcHap = []
+                        # Find the average SLSq for each pot hap set
+                        newPotHaps2 = []
+                        intermediate = []
+                        for solverIter1 in xrange(len(newPotHaps)):
+                            intermediate.append(
+                                easyConcat(newPotHaps[solverIter1])
                                 )
-                            bestAIC.append(potHapSetsAIC[bestAICIdx[iter1]])
-                            newSourceHap.append(
-                                sourceHapSet[bestAICIdx[iter1]]
+                        cleanedIntermediate = [x for x in intermediate 
+                                               if not x is None]                
+                        func = partial(massFindFreqs, inSnpFreqs=SnpFreqs, 
+                                       p=poolSizes)
+                        result = []
+                        for solverIter in xrange(len(cleanedIntermediate)):
+                            result.append(func(cleanedIntermediate[solverIter]))
+                        tmpSols = [x for x in result if not x is None]
+                        
+                        # Determine which solutions (and thus haplotypes) produce 
+                        # an improvement in RSS value
+                        testAICList = [x for x in xrange(len(tmpSols)) 
+                                       if tmpSols[x][2] <= bestAIC[currentHapSet]]
+                        # Keep track of the source haplotye set for these solutions
+                        srcHap = [currentHapSet for x in xrange(len(testAICList))]
+                        # Calculate per SNP residuals to test if improvement was 
+                        # enough to keep this SNPs solutions
+                        newResiduals = []
+                        changedResids = []
+                        SnpResiduals = []
+                        solIter = 0
+                        for sol in tmpSols:
+                            newFullFreqs.append(
+                                [0 for x in xrange(len(sol[1][0][0]))]
                                 )
-                        iter1 += 1
-                    fullFreqs = newFullFreqs[:]
-                    sourceHapSet = newSourceHap[:]
-                    bestRSS = bestFreq
-                    numHaps = [len(x) for x in potHapSets]
+                            for testIter in xrange(len(newFullFreqs[-1])):
+                                for testIter2 in xrange(numPools):
+                                    if sol[1][testIter2][0,testIter] > 0:
+                                        newFullFreqs[-1][testIter] = 1
+                                    newResiduals.append(
+                                      np.array([[x] 
+                                      for x in list(residuals(sol[1][testIter2][0],
+                                      np.concatenate([np.transpose(y[np.newaxis]) 
+                                      for y in newPotHaps[solIter]], axis=1), 
+                                      SnpFreqs[:,testIter2],poolSizes[testIter2]))])
+                                      )
+                            # Calculate per SNP RSS values
+                            SnpResiduals.append(
+                                [sum([newResiduals[poolIter][x]**2 
+                                for poolIter in xrange(numPools)])/numPools 
+                                for x in xrange(numSNPs)]
+                                )
+                            solIter += 1
+                        snpRes1 = [SnpResiduals[x][combin[0]] 
+                                   for x in xrange(len(tmpSols))]
+                        if len(testAICList) > 0:
+                            # Filter to only the best solutions out of all proposed
+                            # solutions based on this haplotype set
+                            # Sort solutions better than starting RSS by RSS value, 
+                            # from lowest to highest
+                            testIndex = sorted(testAICList, 
+                                               key=lambda x: tmpSols[x][2])
+                            # If no best solution for this SNP exists, the best 
+                            # solution for this 
+                            if len(potHapSetsAIC) == 0:
+                                testFreq = tmpSols[testIndex[0]][2]
+                            # If the best RSS from this solution is worse than the 
+                            # best RSS so far proposed, use the best RSS so far 
+                            # proposed
+                            elif tmpSols[testIndex[0]][2] >= min(potHapSetsAIC):
+                                testFreq = min(potHapSetsAIC)
+                            # Othrewise, use the best RSS value from this SNP
+                            else:
+                                testFreq = tmpSols[testIndex[0]][2]
+                            # If this RSS value represents an improvement, sort and
+                            # save solutions
+                            if testFreq < bestAIC[currentHapSet]:
+                                iter1 = 0
+                                minAICIndex = []
+                                continueLoop = True
+                                # Save all solutions (and thus potential haplotype
+                                # sets) that represent an improvement in RSS value
+                                while (iter1 < len(testIndex) and 
+                                       tmpSols[testIndex[iter1]][2] <= testFreq):
+                                    newPotHapSets.append(
+                                        copy(newPotHaps[testIndex[iter1]])
+                                        )
+                                    potHapSetsAIC.append(
+                                        tmpSols[testIndex[iter1]][2]
+                                        )
+                                    snpRes.append(snpRes1[testIndex[iter1]])
+                                    iter1 += 1
+                            else:
+                                minAICIndex = []
+                        # Next haplotype set
+                        currentHapSet += 1
+                    # Check if the ending residual values for a SNP are too high
+                    continueCheck = [False if snpRes[x] >= o.highResidual else True 
+                                     for x in xrange(len(snpRes))]
+                    # Sort potential haplotype sets by RSS value
+                    bestAICIdx = sorted(range(len(newPotHapSets)), 
+                                        key=lambda x: potHapSetsAIC[x])
+                    # Filter solutions based on RSS values, keeping only the lowest 
+                    # RSS values
+                    if len(bestAICIdx) > 0 and True in continueCheck:
+                        bestFreq = potHapSetsAIC[bestAICIdx[0]]
+                        potHapSets = []
+                        bestAIC = []
+                        iter1 = 0
+                        minCtr = 0
+                        newSourceHap = []
+                        potHapSetsMaxRSS = []
+                        while  iter1 < len(bestAICIdx):
+                            if (potHapSetsAIC[bestAICIdx[iter1]] == bestFreq and 
+                                    snpRes[bestAICIdx[iter1]] < o.highResidual):
+                                minCtr += 1
+                                potHapSets.append(
+                                    copy(newPotHapSets[bestAICIdx[iter1]])
+                                    )
+                                bestAIC.append(potHapSetsAIC[bestAICIdx[iter1]])
+                            iter1 += 1
+                        fullFreqs = newFullFreqs[:]
+                        
+                        bestRSS = bestFreq
+                        numHaps = [len(x) for x in potHapSets]
+            if o.saveFreq > 0:
+                if usedSnps % o.saveFreq == 0:
+                    # Save invormation after this ordering
+                    saveFile = open("%s_save%s.tmp" % (o.outPrefix, OrderNumber),"wb")
+                    saveFile.write("Order\n%s\n" % "\t".join([str(x[0]) for x in snpCombins3]))
+                    saveFile.write("Iter\n%s\n" % iteration)
+                    saveFile.write("Used\n%s\n" % usedSnps)
+                    saveFile.write("# Potential Haplotype Sets\n")
+                    saveFile.write("potHapSets\n")
+                    for potSaveIter in xrange(len(potHapSets)):
+                        tmpOutput = []
+                        for hapSaveIter in xrange(len(potHapSets[potSaveIter])):
+                            tmpOutput.append(int("1"+"".join([str(int(x)) 
+                                        for x in potHapSets[potSaveIter][hapSaveIter]]),2))
+                        saveFile.write("%s\n" % "\t".join([str(x) for x in tmpOutput]))
+                    saveFile.write("# Done\n")
+                    saveFile.write("fullFreqs\n")
+                    for potSaveIter in xrange(len(potHapSets)):
+                        saveFile.write("%s\n" % "\t".join([str(x) for x in fullFreqs[potSaveIter]]))
+                    saveFile.write("# Done\n")
+                    saveFile.write("AIC\n%s\n" % "\n".join([str(x) for x in bestAIC])) 
+                    saveFile.write("# Done")
+                    saveFile.close()
         # Filter any solutions that made it through all SNPs. to only those 
         # with the lowest AIC (this time, really is AIC value)  
         SLSqs = []
@@ -385,7 +475,7 @@ def CallHapMain(OrderNumber, o):
         for solverIter1 in xrange(len(potHapSets)):
             intermediate.append(easyConcat(potHapSets[solverIter1]))
         cleanedIntermediate = [x for x in intermediate if not x is None]                
-        func = partial(massFindFreqs, inSnpFreqs=SnpFreqs, p=o.poolSize)
+        func = partial(massFindFreqs, inSnpFreqs=SnpFreqs, p=poolSizes)
         result = []
         for solverIter in xrange(len(cleanedIntermediate)):
             result.append(func(cleanedIntermediate[solverIter]))
@@ -423,7 +513,7 @@ def CallHapMain(OrderNumber, o):
                                 residuals(sol[1][testIter2][0],
                                    np.concatenate([np.transpose(y[np.newaxis])
                                        for y in potHapSets[solIter]], axis=1), 
-                                   SnpFreqs[:,testIter2],o.poolSize)
+                                   SnpFreqs[:,testIter2],poolSizes[testIter2])
                                 )])
                             )
                 SnpResiduals = [sum([newResiduals[poolIter][x]**2 
@@ -513,7 +603,7 @@ def CallHapMain(OrderNumber, o):
             
             for poolIter in xrange(numPools):
                 tmpSol = Find_Freqs(finSolution, finSNPs[:,poolIter], 
-                                    o.poolSize)
+                                    poolSizes[poolIter])
                 SLSqs.append(tmpSol[1])
                 Freqs.append(tmpSol[0])
                 # Calculate residuals for this pool
@@ -521,11 +611,11 @@ def CallHapMain(OrderNumber, o):
                     np.array([[x] for x in list(residuals(tmpSol[0][0], 
                                                           finSolution, 
                                                           finSNPs[:,poolIter], 
-                                                          o.poolSize))])
+                                                          poolSizes[poolIter]))])
                     )
                 # Calculate predicted SNP frequencies                
                 predSnpFreqs = np.sum(finSolution * tmpSol[0][0], 
-                                      axis = 1)/o.poolSize
+                                      axis = 1)/poolSizes[poolIter]
             if iteration == o.numIterations - 1:
                 outputList[-1].append(average(SLSqs))
             baseResiduals.append(newResiduals[:])
@@ -550,6 +640,14 @@ def CallHapMain(OrderNumber, o):
         if iteration == o.numIterations - 1:
             print("Finished Random Order %s/%s" % (str(OrderNumber + 1), 
                                                    str(o.numRand)))
+                                                   
+            saveFile = open("%s_save%s.tmp" % (o.outPrefix, OrderNumber),"wb")
+            saveFile.write("Outputs\n")
+            for xIter in xrange(len(outputList)):
+                saveFile.write("%s\t%s\n" % ("\t".join([str(x) for x in outputList[xIter][0]]), str(outputList[xIter][1])))
+            saveFile.write("# Done")
+            saveFile.close()
+            print("Outputs from order %s/%s:\n%s" % (str(OrderNumber + 1),str(o.numRand),str(outputList)))
             return(outputList)
         
 if __name__ == "__main__":
@@ -565,11 +663,10 @@ if __name__ == "__main__":
         required=True
         )
     parser.add_argument(
-        '-p', '--poolsize', 
+        "-p", "--poolSizes", 
         action="store", 
-        type=int, 
-        dest="poolSize", 
-        help="The number of individuals in each pool.  ", 
+        dest="poolSizesFile", 
+        help="A file detailing the number of individuals in each pooled library.  ", 
         required=True
         )
     parser.add_argument(
@@ -661,6 +758,32 @@ if __name__ == "__main__":
              Increasing the size of this number may lead to a large number of \
              outputs.  "
         )
+    parser.add_argument(
+        '--noSearch', 
+        action="store_true", 
+        dest="findHaps", 
+        help="Use if you don't want to find new haplotypes."
+        )
+    parser.add_argument(
+        '--restart', 
+        action="store_true", 
+        dest="resume", 
+        help="Restart the program from last saved points."
+        )
+    parser.add_argument(
+        '--saveFrequency', 
+        action="store", 
+        type=int,
+        dest="saveFreq", 
+        help="how often to save; default is not to save",
+        default=0
+        )
+    parser.add_argument(
+        '--keepTemps', 
+        action="store_true", 
+        dest="keepTmp", 
+        help="Do not delete temporary files after finishing"
+        )
     o = parser.parse_args()
     
     # version output
@@ -674,7 +797,7 @@ if __name__ == "__main__":
     CommandStr = "Command = python CallHap_HapCallr.py"
     CommandStr += "--inputHaps %s " % o.knownHaps
     CommandStr += "--inputFreqs %s " % o.inFreqs
-    CommandStr += "--poolSize %s " % o.poolSize
+    CommandStr += "--poolSizes %s " % o.poolSizesFile
     CommandStr += "--outPrefix %s " % o.outPrefix
     CommandStr += "--processes %s " % o.numProcesses
     CommandStr += "--numIterations %s " % o.numIterations
@@ -689,17 +812,212 @@ if __name__ == "__main__":
     CommandStr += "--numTopRSS %s" % o.topNum
     print(CommandStr)
     
+    # Generate poolSize related numbers:
+    poolSizes = []
+    inPoolSizes = open(o.poolSizesFile,"rb")
+    for line in inPoolSizes:
+        poolSizes.append(int(line.strip().split()[1]))
+    inPoolSizes.close()    
     # Set initial output prefix
     outPrefix = "%s" % (o.outPrefix)
+    
+    if o.findHaps:
+        print("Outputing initial solution")
+        print("Loading haplotypes")
+        # Load haplotypes
+        KnownHaps, KnownNames = toNP_array(o.knownHaps, "GT")
+        # Invert haplotypes so that ref allele is 1
+        KnownHaps = invertArray(KnownHaps)
+        # Find unique haplotypes
+        inHapArray, UniqueNames = UniqueHaps(KnownHaps, KnownNames)
+        # Count number of unique haplotypes
+        numHapsInitial = len(UniqueNames)
+        # Count number of SNPs
+        numSNPs = inHapArray.shape[0]
+        # Add "dummy" SNP to ensure haplotype frequencies sum correctly
+        inHapArray = ExtendHaps(inHapArray)
+        # Store input haplotypes in bestArray
+        bestArray = np.copy(inHapArray)       
+        print("Loading Frequencies")
+        # Load SNPs
+        SnpFreqs, poolNames = toNP_array(o.inFreqs, "RF")
+        # Add "dummy" SNP to ensure haplotype frequencies sum correctly
+        SnpFreqs = ExtendHaps(SnpFreqs)
+        # Count number of pools present
+        numPools = len(poolNames)
+        
+        # Count number of haplotypes again to save initial number of known 
+        # haplotypes for later
+        # May not be needed in random method
+        numHapsInitial1 = len(UniqueNames)
+        # Set baseNumHapSets to keep track of source haplotype set for each created
+        # haplotype set
+        baseNumHapSets = 1
+        # Convert haplotypes and SNPs arrays to decimal format to prevent rounding
+        # errors
+        bestArray = npToDecNp(bestArray)
+        SnpFreqs = npToDecNp(SnpFreqs)
+        
+        # Find base SLSq
+        # Save base RSS
+        baseSLSq = []
+        # Save base haplotype frequencies
+        baseFreqs = []
+        # save base residuals
+        baseResiduals = [[]]
+        # Calculate RSS for each pool
+        for poolIter in xrange(numPools):
+            tmpSol = Find_Freqs(bestArray, SnpFreqs[:,poolIter], poolSizes[poolIter])
+            baseSLSq.append(tmpSol[1])
+            baseFreqs.append(tmpSol[0])
+            baseResiduals[0].append(
+                np.array([[x] for x in list(residuals(tmpSol[0][0],bestArray, 
+                              SnpFreqs[:,poolIter],poolSizes[poolIter]))])
+                )
+    
+        NexusWriter(KnownNames, KnownHaps, numSNPs, o.outPrefix, 
+                "INITIAL", o.knownHaps)
+        NexusWriter(UniqueNames, inHapArray, numSNPs, o.outPrefix, 
+                "Unique", o.knownHaps)
+        myDecHaps = []
+        for haplotypeIter in xrange(bestArray.shape[1]):
+            myDecHaps.append(int("1"+"".join([str(int(x)) 
+                for x in bestArray[:, haplotypeIter]]),2))
+        # Create final haplotypes array
+        finSolution = bestArray
+        # Find (or make) haplotype names
+        myHapNames = UniqueNames
+        print("Outputing base solution ")
+        # If requested, generate a structure formatted file
+        if o.strOutput:
+            outFile = open("%s_base.str" % (outPrefix), 'wb')
+        # Generate the haplotype frequencies file
+        outFile2 = open("%s_base_freqs.csv" % (outPrefix), 'wb')
+        outFile2.write("Population,")
+        # Create decimal haplotype identifiers
+        # Finish writing first line of haplotype frequencies file
+        outFile2.write(",".join(myHapNames))
+        outFile2.write(",RSS")
+        # Write decimal names of haplotypes
+        outFile2.write(
+            "\n,%s" % ",".join([str(x) for x in myDecHaps])
+            )
+        # Create genpop output, if requested
+        if o.genpopOutput:
+            genpopOut = open("%s_base.genpop" % (outPrefix), 'wb')
+            genpopOut.write(
+                ",%s" % (",".join(["cp." + str(x) 
+                                   for x in myDecHaps]))
+                )
+        SLSqs = []
+        Freqs = []
+        predSnpFreqs = []
+        # Create regression output
+        regressionOutput = open(
+            "%s_base_Regression.csv" % (outPrefix), 'wb'
+            )
+        regressionOutput.write(
+            "Pool,SNP,Observed Frequency,Predicted Frequency\n"
+            )
+        # Create predicted frequencies VCF output
+        output3 = vcfWriter(
+            "%s_base_PredFreqs.vcf" % (outPrefix), 
+            source="CallHaps_HapCallr_%s" % progVersion)
+        output3.writeHeader(poolNames)
+        output3.setFormat("RF")
+        
+        tmpVCF = vcfReader(o.knownHaps)
+        output3.importLinesInfo(
+            tmpVCF.getData("chrom", lineTarget="a"),
+            tmpVCF.getData("pos", lineTarget="a"), 
+            tmpVCF.getData("ref", lineTarget="a"), 
+            tmpVCF.getData("alt", lineTarget="a"), 
+            tmpVCF.getData("qual", lineTarget="a")
+            )
+        newResiduals = []
+        print("Finding haplotype frequencies...")
+        for poolIter in xrange(numPools):
+            tmpSol = Find_Freqs(bestArray, SnpFreqs[:,poolIter], poolSizes[poolIter])
+            SLSqs.append(tmpSol[1])
+            Freqs.append(tmpSol[0])
+            # Write haplotype frequencies and RSS values for this pool
+            outFile2.write(
+                "\n%s,%s" % (poolNames[poolIter], 
+                             ",".join([str(x) for x in tmpSol[0][0]]))
+                )
+            outFile2.write(",%s" % tmpSol[1])
+            # Write genpop file text for this pool, if requested
+            if o.genpopOutput:
+                genpopOut.write(
+                    "\n%s,%s" % (poolNames[poolIter],
+                                 ",".join([str(x) for x in tmpSol[0][0]]))
+                    )
+            # Write structure file text for this pool, if requested
+            if o.strOutput:
+                outputProt(UniqueNames, tmpSol[0], finSolution, poolSizes[poolIter], 
+                           poolNames, poolIter, outFile)
+            # Calculate residuals for this pool
+            newResiduals.append(
+                np.array([[x] for x in list(residuals(tmpSol[0][0],
+                                                      finSolution, 
+                                                      SnpFreqs[:,poolIter],
+                                                      poolSizes[poolIter]))])
+                )
+            # Calculate predicted SNP frequencies                
+            predSnpFreqs = np.sum(
+                finSolution * tmpSol[0][0], axis = 1
+                )/poolSizes[poolIter]
+            #print("##DEBUG")
+            # Write regression file lines for this pool
+            regOutLines = zip(
+                [poolNames[poolIter] 
+                    for x in xrange(len(predSnpFreqs))],
+                [str(y) for y in xrange(len(predSnpFreqs))], 
+                [str(z) for z in list(SnpFreqs[:,poolIter])], 
+                [str(w) for w in list(predSnpFreqs)]
+                )
+            regressionOutput.write(
+                "\n".join([",".join(regOutLines[x]) 
+                          for x in xrange(len(regOutLines))])
+                )
+            regressionOutput.write("\n") # add a new line between pools
+            # Add predicted SNP frequencies to VCF output
+            output3.importSampleValues(list(predSnpFreqs), poolNames[poolIter])
+        # Calculate per SNP RSS values for VCF output
+        SnpResiduals = [float(sum([newResiduals[poolIter][x]**2 
+                                  for poolIter in xrange(numPools)])[0]) 
+                        for x in xrange(numSNPs)]
+        output3.importInfo("RSS",SnpResiduals)
+        output3.writeSamples()
+        # Close output files
+        output3.close()
+        regressionOutput.close()
+        outFile2.close()
+        if o.strOutput:
+            outFile.close()
+        if o.genpopOutput:
+            genpopOut.close()
+        exit()
 
-    pool = Pool(processes=o.numProcesses, maxtasksperchild=500)
-    func = partial(CallHapMain, o=o)
-    funcIterable = range(o.numRand)
-    result = pool.map(func, funcIterable)
-    cleaned = [x for x in result if not x is None]
-    # not optimal but safe
-    pool.close()
-    pool.join()
+
+    if o.resume == True:
+        pool = Pool(processes=o.numProcesses, maxtasksperchild=10)
+        func = partial(CallHapMain, o=o, resume=True)
+        funcIterable = range(o.numRand)
+        result = pool.map(func, funcIterable)
+        cleaned = [x for x in result if not x is None]
+        # not optimal but safe
+        pool.close()
+        pool.join()
+    else:
+        pool = Pool(processes=o.numProcesses, maxtasksperchild=10)
+        func = partial(CallHapMain, o=o)
+        funcIterable = range(o.numRand)
+        result = pool.map(func, funcIterable)
+        cleaned = [x for x in result if not x is None]
+        # not optimal but safe
+        pool.close()
+        pool.join()
 
     ## Get initial haplotypes / SNP frequencies
     # Load haplotypes
@@ -798,7 +1116,7 @@ if __name__ == "__main__":
                     set(cleaned[randIter][solIter][0])
                     )] += 1./numSols
     topoCountsOutput = open("%s_topologies.csv" % outPrefix, 'wb')
-    topoCountsOutput.write("RSS,Occurances,Haplotypes")
+    topoCountsOutput.write("RSS,Occurrences,Haplotypes")
     
     # Output counts for different topologies
     for topoIter in xrange(len(UniqueTopologies)):
@@ -819,10 +1137,10 @@ if __name__ == "__main__":
                          key=lambda x: UniqueTopoRSSs[x])
     ## Find the third best RSS value
     # Keep track of if which RSS value this is
-    whichBest = 1
+    whichBest = 0
     bestRSS = UniqueTopoRSSs[RssPointers[0]]
-    currPointer = 1
-    while currPointer < len(RssPointers) and whichBest <= o.topNum: 
+    currPointer = 0
+    while currPointer < len(RssPointers) and whichBest < o.topNum: 
         if UniqueTopoRSSs[RssPointers[currPointer]] > bestRSS:
             whichBest += 1
             bestRSS = UniqueTopoRSSs[RssPointers[currPointer]]
@@ -832,7 +1150,7 @@ if __name__ == "__main__":
     finTopos = []
     finDecHaps = []
     print("Extract solutions from best RSS values")
-    for convPointer in xrange(currPointer):
+    for convPointer in xrange(currPointer - 1):
         # Convert haplotype set to list of numpy arrays
         finTopos.append(
             [DecHapToNPHap(UniqueTopologies[RssPointers[convPointer]][x]) 
@@ -918,7 +1236,7 @@ if __name__ == "__main__":
         newResiduals = []
         print("Finding haplotype frequencies...")
         for poolIter in xrange(numPools):
-            tmpSol = Find_Freqs(finSolution, finSNPs[:,poolIter], o.poolSize)
+            tmpSol = Find_Freqs(finSolution, finSNPs[:,poolIter], poolSizes[poolIter])
             SLSqs.append(tmpSol[1])
             Freqs.append(tmpSol[0])
             # Write haplotype frequencies and RSS values for this pool
@@ -935,19 +1253,19 @@ if __name__ == "__main__":
                     )
             # Write structure file text for this pool, if requested
             if o.strOutput:
-                outputProt(UniqueNames, tmpSol[0], finSolution, o.poolSize, 
+                outputProt(UniqueNames, tmpSol[0], finSolution, poolSizes[poolIter], 
                            poolNames, poolIter, outFile)
             # Calculate residuals for this pool
             newResiduals.append(
                 np.array([[x] for x in list(residuals(tmpSol[0][0],
                                                       finSolution, 
                                                       finSNPs[:,poolIter],
-                                                      o.poolSize))])
+                                                      poolSizes[poolIter]))])
                 )
             # Calculate predicted SNP frequencies                
             predSnpFreqs = np.sum(
                 finSolution * tmpSol[0][0], axis = 1
-                )/o.poolSize
+                )/poolSizes[poolIter]
             #print("##DEBUG")
             # Write regression file lines for this pool
             regOutLines = zip(
@@ -982,3 +1300,7 @@ if __name__ == "__main__":
         # This allows for network phylogeny construction
         NexusWriter(myHapNames, finSolution, numSNPs, outPrefix, 
                     outTopoPtr, o.knownHaps)
+        # Delete any remaining temporary files
+        if not o.keepTmp:
+            for deletionIter in xrange(o.numRand):
+                os.remove("%s_save%s.tmp" % (o.outPrefix, deletionIter))

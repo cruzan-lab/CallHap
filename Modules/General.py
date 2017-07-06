@@ -150,7 +150,7 @@ def FindLegalSnpsByNetwork(inHaps, testHapIdx):
             CanChange.extend(closestDiffs[hap])
     return(closestHaps[0],CanChange)
     
-def ValidSnpsFromPhylogeny(inHaps):
+def ValidSnpsFromPhylogeny(inHaps, numInitHaps):
     countDiffs = [[(a!=b) for a in inHaps] for b in inHaps]
     diffSnps = [[[b for b in xrange(len(countDiffs[x][a])) 
                   if countDiffs[x][a][b] == True] 
@@ -182,6 +182,37 @@ def ValidSnpsFromPhylogeny(inHaps):
                 else:
                     nextHaps[-1].append(hap2)
                     validSnps[-1].extend(diffSnps[hap][hap2])
+
+    validSnps2 = []
+    nextHaps2 = []
+    for hap in xrange(numInitHaps):
+        nextHaps2.append([])
+        validSnps2.append([])
+        minDistOrder = sorted(range(numInitHaps), 
+                              key=lambda x: len(diffSnps[hap][x]))
+#        print("DEBUG")
+        for hap2 in minDistOrder:
+            if hap != hap2:
+
+                if len(nextHaps2[-1]) > 0:
+                    isAdj = True
+                    for closeHap in nextHaps2[-1]:
+                        if len(np.intersect1d(diffSnps[hap][closeHap], 
+                                              diffSnps[hap][hap2])) != 0:
+                            isAdj = False
+                            validSnps2[-1] = list(np.setdiff1d(validSnps[-1], 
+                                diffSnps[closeHap][hap2]))
+                    if isAdj == True:
+                        nextHaps2[-1].append(hap2)
+                        validSnps2[-1].extend(diffSnps[hap][hap2])
+                else:
+                    nextHaps2[-1].append(hap2)
+                    validSnps2[-1].extend(diffSnps[hap][hap2])
+
+    for hapID in xrange(len(validSnps2)):
+        for iter1 in xrange(len(validSnps2[hapID])):
+            if validSnps2[hapID][iter1] not in validSnps[hapID]:
+                validSnps[hapID].append(validSnps2[hapID][iter1])
     return(validSnps)
     
 def DecHapToNPHap(decHap):
