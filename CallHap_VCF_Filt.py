@@ -81,11 +81,10 @@ parser.add_argument(
     default = 0.75
     )
 parser.add_argument(
-    "-p", "--poolSize", 
+    "-p", "--poolSizes", 
     action="store", 
-    dest="poolSize", 
-    type=int, 
-    help="the number of individuals in each pooled library.  ", 
+    dest="poolSizesFile", 
+    help="A file detailing the number of individuals in each pooled library.  ", 
     required=True
     )
 parser.add_argument(
@@ -128,8 +127,8 @@ pyCommand = "python CallHap_VCF_Filt.py --inVCF %s --outHaps %s " % (
 pyCommand += "--outPools %s --numSamps %s --numPools %s --minDepth %s " % (
     o.outPools, o.numSamps, o.numPools, o.minDepth
     )
-pyCommand += "--minCallPrev %s --minSnpPrev %s --poolSize %s --minQual %s" % (
-    o.minCallPrev, o.minSnpPrev, o.poolSize, o.minQual
+pyCommand += "--minCallPrev %s --minSnpPrev %s --poolSizes %s --minQual %s" % (
+    o.minCallPrev, o.minSnpPrev, o.poolSizesFile, o.minQual
     )
 
 print("Command = %s" % pyCommand)
@@ -139,9 +138,29 @@ inVCF = vcfReader(o.inFile)
 # Open output files
 outHaps = open(o.outHaps, 'wb')
 outPools = open(o.outPools, 'wb')
+# Write VCF version lines to make sure this is a good VCF file
+outHaps.write("##fileformat=VCFv4.2\n")
+outHaps.write("##fileDate=%s\n" % time.strftime("%Y%m%d"))
+outHaps.write("##source=%s\n" % ("CallHap_VCF_parser"))
+outPools.write("##fileformat=VCFv4.2\n")
+outPools.write("##fileDate=%s\n" % time.strftime("%Y%m%d"))
+outPools.write("##source=%s\n" % ("CallHap_VCF_parser"))
+
 # Write command into header lines of both output files
 outHaps.write("##Command=\"%s\"" % pyCommand)
 outPools.write("##Command=\"%s\"" % pyCommand)
+
+# Generate poolSize related numbers:
+poolSizes = []
+inPoolSizes = open(o.poolSizesFile,"rb")
+for line in inPoolSizes:
+    poolSizes.append(int(line.strip().split()[1]))
+inPoolSizes.close()
+if len(poolSizes) != o.numPools:
+    print("Error: Number of pool sizes does not match reported number of pools!")
+    exit()
+snpPrevCutoffs = [o.minSnpPrev/x for x in poolSizes]
+
 
 # Check average depth of each column in input
 print("Checking depth of input columns...")
@@ -249,9 +268,9 @@ for line in inVCF.lines:
         useLine = False
     # Check that all used columns in this line have adequate depth
     elif False in [
-        True if int(lineDPs[x]) >= o.minDepth or goodDepth[x] == False 
-        else False for x in xrange(len(lineDPs))
-        ]:
+            True if int(lineDPs[x]) >= o.minDepth or goodDepth[x] == False 
+            else False for x in xrange(len(lineDPs))
+            ]:
         lineChekcer.append((False, "low depth", pos))
         useLine = False
     # Check that the length of the reference is 1
@@ -397,7 +416,13 @@ for line in inVCF.lines:
                 lineChekcer[-1].append("monomorphicSamps")
             # Check if sample is polymorphic in pools
             if o.numPools > 0:
-                if min(poolFreqs) <= 1. - (o.minSnpPrev/o.poolSize):
+                testArr = []
+                for freqIter in xrange(len(poolFreqs)):
+                    if poolFreqs[freqIter] <= 1. - snpPrevCutoffs[freqIter]:
+                        testArr.append(True)
+                    else:
+                        testArr.append(False)
+                if True in testArr:
                     polymorphicPools = True
                     lineChekcer[-1].append("polymorphicPools")
             # If either SSLs are polymorphic or SSLs are monomorphic and Pools 

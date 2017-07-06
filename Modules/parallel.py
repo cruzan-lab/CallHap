@@ -27,7 +27,7 @@ def massFindFreqs(inHaps, inSnpFreqs, p):
     mySLSqs = []
     myFreqs = []
     for poolIter in xrange(inSnpFreqs.shape[1]):
-        tmpSol = Find_Freqs(inHaps, inSnpFreqs[:, poolIter], p)
+        tmpSol = Find_Freqs(inHaps, inSnpFreqs[:, poolIter], p[poolIter])
         mySLSqs.append(tmpSol[1])
         myFreqs.append(tmpSol[0])
     myAIC = sum(mySLSqs)/len(mySLSqs)

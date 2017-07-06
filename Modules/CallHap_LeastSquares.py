@@ -27,16 +27,25 @@ def Find_Freqs(A, b, p):
     currentSSR, x = InitialTest(A, b, x, currentSSR, M, N, p)
     lastSSR = currentSSR
     lastX = np.copy(x)
+    #print("current solution:")
+    #print(x)
+    #print("RSS value:")
+    #print(currentSSR)
     # Create finished switch and counter to check for infinite loops
     finished = False
     # Iterations:
     while not finished:
         # invoke the mail loop
         currentSSR, x = mainLoop(A, b, x, N, M, currentSSR, p)
+        #print("current solution:")
+        #print(x)
+        #print("RSS value:")
+        #print(currentSSR)
         # If the SSR (Sum Squared Residuals; equivalent to RSS) value increases
         # on this loop, finish
         if currentSSR >= lastSSR:
             finished = True
+            #print("Finished!")
         else:
             lastSSR = currentSSR
             lastX = np.copy(x)
@@ -76,7 +85,7 @@ def mainLoop(A, b, xML, N, M, currSSR, p):
     # and add one to each other element (x_2) in turn; 
     bestSSR = [(-1,-1),currSSR]
     for x_1 in xrange(N):
-        if xML[0, x_1] > 1:
+        if xML[0, x_1] >= 1:
             for x_2 in xrange(N):
                 wx = np.copy(xML)
                 if x_1 != x_2:
