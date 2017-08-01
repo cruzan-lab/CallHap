@@ -1,0 +1,16 @@
+##NEXUS
+Begin Data;
+	Dimensions ntax=9 nchar=9;
+	Format datatype=DNA missing=N gap=-;
+	Matrix
+Hap2	TAGGAACCC
+Hap9	GCGGAACCT
+NewHap_2047	GCGGAACCC
+NewHap_2043	GCGGAACTC
+NewHap_2015	GCGGTACCC
+NewHap_2027	GCGGAGCTC
+NewHap_2039	GCGGAATCC
+NewHap_1919	GCAGAACCC
+NewHap_1983	GCGTAACCC
+;
+End;

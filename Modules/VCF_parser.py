@@ -26,14 +26,19 @@ class vcfWriter:
     a.writeSamples()
     a.close()
     '''
-    def __init__(self, inFileName, source):
+    def __init__(self, inFileName, source, commandLine, baseHead, FormatBlock):
         '''Initialize the class'''
         # Open an output file
         self.outputFile = open(inFileName, "wb")
-        # Write header lines
-        self.outputFile.write("##fileformat=VCFv4.2\n")
+        # Write header lines        
+        self.outputFile.write("##fileformat=VCFv4.1\n")
+        self.outputFile.write("".join(baseHead["headBlock"]))
         self.outputFile.write("##fileDate=%s\n" % time.strftime("%Y%m%d"))
-        self.outputFile.write("##source=%s\n" % source)
+        self.outputFile.write("##source=%s\n" % ("CallHap_VCF_parser"))
+        self.outputFile.write("##commandline=\"%s\"" % commandLine)
+        self.outputFile.write("".join(baseHead["INFO"]))
+        self.outputFile.write("".join(FormatBlock))
+        self.outputFile.write("".join(baseHead["contig"]))
     
     def writeHeader(self, sampleNames):
         
@@ -173,6 +178,7 @@ class vcfReader:
     def __init__(self, inFileName):
         '''Initialize the reader and read the file'''
         self.headInfo = {}
+        self.headInfo["headBlock"] = []
         self.lines = []
         # Open the file
         inFile = open(inFileName, "rb")
@@ -181,24 +187,27 @@ class vcfReader:
             if line[0:2] == "##":
                 # Parse the header line, in case that information is needed 
                 # later
+                
                 wLine = line.strip("#").split("=", 1)
-                if "INFO" in wLine[1]:
+                if "INFO" in wLine[0]:
                     if "INFO" not in self.headInfo:
-                        self.headInfo["INFO"] = {}
+                        self.headInfo["INFO"] = []
                     linebins = wLine[1].strip("<>").split(",")
-                    self.headInfo["INFO"][linebins[0].split("=")[1]] = {
-                        x.split("=")[0]: x.split("=")[1] for x in linebins
-                        }
+                    self.headInfo["INFO"].append(line)
 
-                elif "FORMAT" in wLine[1]:
+                elif "FORMAT" in wLine[0]:
                     if "FORMAT" not in self.headInfo:
                         self.headInfo["FORMAT"] = {}
-                    linebins = wLine[1].strip("<>").split(",")
                     self.headInfo["FORMAT"][linebins[0].split("=")[1]] = {
                         x.split("=")[0]: x.split("=")[1] for x in linebins
                         }
-                else:
-                    self.headInfo[wLine[0]] = wLine[1]
+                elif "INFO" not in self.headInfo:
+                    self.headInfo["headBlock"].append(line)
+                elif wLine[0] not in self.headInfo:
+                    self.headInfo[wLine[0]] = [line]
+                elif wLine[0] in self.headInfo:
+                    self.headInfo[wLine[0]].append(line)
+                    
             # Check if this is the column labels line
             elif line[0] == "#":
                 # Save the sample names
@@ -206,6 +215,8 @@ class vcfReader:
             else:
                 # Create a new VCF line with the data in this line
                 self.lines.append(vcfLine(line))
+        if "contig" not in self.headInfo:
+            self.headInfo["contig"] = []
         # Close the input file
         inFile.close()
     
@@ -276,7 +287,8 @@ class vcfLine:
     
     def toNP(self, target):
         '''Get the data from this row to for numpy array creation'''
-        return([self.data["data"][x].toNP(target) for x in xrange(len(self.data["data"]))])
+        return([self.data["data"][x].toNP(target) 
+                for x in xrange(len(self.data["data"]))])
 
     def setElmt(self, target, newValue):
         '''Set a specific value in the data from this row'''

@@ -105,10 +105,14 @@ parser.add_argument(
     )
 parser.add_argument(
     "--dropLowDepth", 
-    action="store_true", 
+    action="store", 
+    type=int,
     dest="dropLow", 
-    help="Automatically drop any samples with an average depth under the \
-          minimum depth.  "
+    help="This should be no greater than the requested minimum depth.  Failure \
+          to set this flag to something other than the default may result in \
+          loss of variants based on incomplete coverage.   \
+          Default is to keep all columns.  ",
+    default=0
     )
 parser.add_argument(
     "--indelDist", 
@@ -139,16 +143,25 @@ inVCF = vcfReader(o.inFile)
 outHaps = open(o.outHaps, 'wb')
 outPools = open(o.outPools, 'wb')
 # Write VCF version lines to make sure this is a good VCF file
-outHaps.write("##fileformat=VCFv4.2\n")
+outHaps.write("".join(inVCF.headInfo["headBlock"]))
 outHaps.write("##fileDate=%s\n" % time.strftime("%Y%m%d"))
 outHaps.write("##source=%s\n" % ("CallHap_VCF_parser"))
-outPools.write("##fileformat=VCFv4.2\n")
-outPools.write("##fileDate=%s\n" % time.strftime("%Y%m%d"))
-outPools.write("##source=%s\n" % ("CallHap_VCF_parser"))
+outHaps.write("##commandline=\"%s\"" % pyCommand)
+#outHaps.write("".join(inVCF.headInfo["INFO"]))
+outHaps.write('##FORMAT=<ID=GT,Number=1,Type=String,Description="Genotype">\n')
+outHaps.write("".join(inVCF.headInfo["contig"]))
+
+outPools.write("".join(inVCF.headInfo["headBlock"]))
+outPools.write("##fileDate2=%s\n" % time.strftime("%Y%m%d"))
+outPools.write("##source2=%s\n" % ("CallHap_VCF_parser"))
+outPools.write("##commandline2=\"%s\"" % pyCommand)
+#outPools.write("".join(inVCF.headInfo["INFO"]))
+outPools.write('##FORMAT=<ID=RF,Number=1,Type=Float,Description="Reference Frequency">\n')
+outPools.write("".join(inVCF.headInfo["contig"]))
 
 # Write command into header lines of both output files
-outHaps.write("##Command=\"%s\"" % pyCommand)
-outPools.write("##Command=\"%s\"" % pyCommand)
+
+
 
 # Generate poolSize related numbers:
 poolSizes = []
@@ -164,11 +177,13 @@ snpPrevCutoffs = [o.minSnpPrev/x for x in poolSizes]
 
 # Check average depth of each column in input
 print("Checking depth of input columns...")
+vcfNames = inVCF.getNames()
 depths = [0. for x in xrange(o.numSamps + o.numPools)]
 lines = 0
 goodDepth = [True for x in xrange(o.numSamps + o.numPools)]
 lineChekcer = []
 goodVarCtr = 0
+maxDepth = [0. for x in xrange(o.numSamps + o.numPools)]
 # Determine which columns have (on average) a good enough depth to pass the 
 # depth filter
 for line in inVCF.lines:
@@ -178,41 +193,28 @@ for line in inVCF.lines:
             depths[iter1] += 0.
         else:
             depths[iter1] += float(lineDPs[iter1])
+            if float(lineDPs[iter1]) >= maxDepth[iter1]:
+                maxDepth[iter1] = float(lineDPs[iter1])
     lines += 1
 for iter1 in xrange(o.numSamps + o.numPools):
-    if depths[iter1]/lines >= o.minDepth: 
+    if depths[iter1]/lines >= o.dropLow: 
         goodDepth[iter1] = True
     else:
         goodDepth[iter1] = False
-
-vcfNames = inVCF.getNames()
-# Print warnings about inadequate depth
-if False in goodDepth:
-    badColumns = [x for x in range(len(goodDepth)) if goodDepth[x] == False]
-    for badIter in badColumns:
-        print("\tWarning: Sample %s is has too low of a depth (%s)" % 
-              (vcfNames[badIter], depths[badIter]/lines))
-        # If requested, automatically drop these columns
-        if o.dropLow:
-            print("; skipping\n")
-        else:
-            print("\n")
-else:
-    print("\tAll columns have greater than minimum average depth.  ")
-# If dropping low depth columns has not been requested, reset goodDepth checker
-if not o.dropLow:
-    goodDepth = [True for x in xrange(o.numSamps + o.numPools)]
-    
+    if depths[iter1]/lines <= o.minDepth:
+        print("\tWarning: Sample %s is has too low of a depth (%s)%s" % 
+              (vcfNames[iter1], depths[iter1]/lines, "; skipping" 
+              if not goodDepth[iter1] else ""))
 # Write column labels to both output files
 outHaps.write(
-    "\n#CHROM\tPOS\tID\tREF\tALT\tQUAL\tFILTER\tINFO\tFORMAT\t%s" % (
+    "#CHROM\tPOS\tID\tREF\tALT\tQUAL\tFILTER\tINFO\tFORMAT\t%s" % (
         "\t".join(
             [vcfNames[x] for x in  xrange(0,o.numSamps) 
                 if goodDepth[x] == True]
             ))
     )
 outPools.write(
-    "\n#CHROM\tPOS\tID\tREF\tALT\tQUAL\tFILTER\tINFO\tFORMAT\t%s" % (
+    "#CHROM\tPOS\tID\tREF\tALT\tQUAL\tFILTER\tINFO\tFORMAT\t%s" % (
         "\t".join([vcfNames[x] for x in  xrange(o.numSamps, 
                                                 o.numSamps+o.numPools) 
                   if goodDepth[x] == True ])
@@ -257,9 +259,11 @@ for line in inVCF.lines:
     pos = line.getData("pos")
     lineRefCounts = line.getData("RO","a")
     lineDPs = line.getData("DP","a")
+    checkDPs = [lineDPs[x] for x in xrange(len(lineDPs)) if goodDepth[x] == True]
     useLine = True
     # Check that there is depth in all samples for this line
-    if np.nan in lineDPs:
+    if np.nan in checkDPs:
+        #print(checkDPs)
         lineChekcer.append((False, "incomplete coverage", pos))
         useLine = False
     # Check that this line passes the quality filter
@@ -268,8 +272,8 @@ for line in inVCF.lines:
         useLine = False
     # Check that all used columns in this line have adequate depth
     elif False in [
-            True if int(lineDPs[x]) >= o.minDepth or goodDepth[x] == False 
-            else False for x in xrange(len(lineDPs))
+            True if int(checkDPs[x]) >= o.minDepth
+            else False for x in xrange(len(checkDPs))
             ]:
         lineChekcer.append((False, "low depth", pos))
         useLine = False

@@ -1,0 +1,10 @@
+#CHROM	POS	ID	REF	ALT	QUAL	FILTER	INFO	FORMAT	Hap2	Hap9
+Lascal_chloro_genome_draft_1_Feb_7_2017_removed_Node_IDs_and_added_Ns	1614	.	G	T	45953	.	.	GT	1	0
+Lascal_chloro_genome_draft_1_Feb_7_2017_removed_Node_IDs_and_added_Ns	2926	.	C	A	1.88E+06	.	.	GT	1	0
+Lascal_chloro_genome_draft_1_Feb_7_2017_removed_Node_IDs_and_added_Ns	3574	.	G	A	60832	.	.	GT	0	0
+Lascal_chloro_genome_draft_1_Feb_7_2017_removed_Node_IDs_and_added_Ns	15679	.	G	T	50207.9	.	.	GT	0	0
+Lascal_chloro_genome_draft_1_Feb_7_2017_removed_Node_IDs_and_added_Ns	19360	.	A	T	1.42E+06	.	.	GT	0	0
+Lascal_chloro_genome_draft_1_Feb_7_2017_removed_Node_IDs_and_added_Ns	21207	.	A	G	1.79E+06	.	.	GT	0	0
+Lascal_chloro_genome_draft_1_Feb_7_2017_removed_Node_IDs_and_added_Ns	24000	.	C	T	1.00E+03	.	.	GT	0	0
+Lascal_chloro_genome_draft_1_Feb_7_2017_removed_Node_IDs_and_added_Ns	25000	.	C	T	1.00E+03	.	.	GT	0	0
+Lascal_chloro_genome_draft_1_Feb_7_2017_removed_Node_IDs_and_added_Ns	26000	.	C	T	1.00E+03	.	.	GT	0	1

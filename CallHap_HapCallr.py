@@ -920,13 +920,19 @@ if __name__ == "__main__":
             "Pool,SNP,Observed Frequency,Predicted Frequency\n"
             )
         # Create predicted frequencies VCF output
+
+        
+        tmpVCF = vcfReader(o.inFreqs)
+
         output3 = vcfWriter(
             "%s_base_PredFreqs.vcf" % (outPrefix), 
-            source="CallHaps_HapCallr_%s" % progVersion)
+            source="CallHaps_HapCallr_%s" % progVersion, 
+            commandLine=CommandStr, 
+            baseHead=tmpVCF.headInfo, 
+            FormatBlock=[tmpVCF.headInfo["FORMAT"]])
         output3.writeHeader(poolNames)
         output3.setFormat("RF")
         
-        tmpVCF = vcfReader(o.knownHaps)
         output3.importLinesInfo(
             tmpVCF.getData("chrom", lineTarget="a"),
             tmpVCF.getData("pos", lineTarget="a"), 

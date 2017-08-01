@@ -75,13 +75,16 @@ fullHaps.extend([invertArray(NewHaps[x].transpose()) for x in xrange(len(NewHaps
 KnownNames.extend(newHapNames)
 
 # Write out haplotypes
+tmpVCF = vcfReader(o.knownHaps)
 output3 = vcfWriter(
-    o.outFile, 
-    source="")
+    "%s_base_PredFreqs.vcf" % (outPrefix), 
+    source="CallHaps_HapCallr_%s" % progVersion, 
+    commandLine=CommandStr, 
+    baseHead=tmpVCF.headInfo, 
+    FormatBlock=[tmpVCF.headInfo["FORMAT"]])
 output3.writeHeader(KnownNames)
 output3.setFormat("GT")
 
-tmpVCF = vcfReader(o.knownHaps)
 output3.importLinesInfo(
     tmpVCF.getData("chrom", lineTarget="a"),
     tmpVCF.getData("pos", lineTarget="a"), 
