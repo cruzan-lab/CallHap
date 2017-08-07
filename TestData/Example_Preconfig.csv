@@ -1,0 +1,4 @@
+Read1File,Read2File,RGLBs,RGSM,RGPU,Mode,Ref
+/path/to/sample1/read1.fq.gz,/path/to/sample1/read2.fq.gz,LibraryIdentifier1,SampleName1,MultiplexingBarcode1,pe,/path/to/reference/genome1.fasta
+/path/to/sample2/read1.fq.gz,.,LibraryIdentifier2,SampleName2,MultiplexingBarcode2,se,/path/to/reference/genome1.fasta
+/path/to/sample3/read1.fq.gz,/path/to/sample3/read2.fq.gz,LibraryIdentifier3,SampleName3,MultiplexingBarcode3,pe,/path/to/reference/genome2.fasta
