@@ -10,6 +10,7 @@ from argparse import ArgumentParser
 import time
 from Modules.VCF_parser import *
 from Modules.IO import *
+import sys
 
 parser = ArgumentParser()
 parser.add_argument(
@@ -125,17 +126,9 @@ o = parser.parse_args()
 
 print("Running CallHap VCF filter on %s at %s" % (time.strftime("%d/%m/%Y"),
                                                   time.strftime("%H:%M:%S")))
-pyCommand = "python CallHap_VCF_Filt.py --inVCF %s --outHaps %s " % (
-    o.inFile, o.outHaps
-    )
-pyCommand += "--outPools %s --numSamps %s --numPools %s --minDepth %s " % (
-    o.outPools, o.numSamps, o.numPools, o.minDepth
-    )
-pyCommand += "--minCallPrev %s --minSnpPrev %s --poolSizes %s --minQual %s" % (
-    o.minCallPrev, o.minSnpPrev, o.poolSizesFile, o.minQual
-    )
 
-print("Command = %s" % pyCommand)
+print("Command = python CallHap_VCF_Filt.py %s" % " ".join(sys.argv[1:]))
+
 print("\nOpening files...")
 # Open input VCF file
 inVCF = vcfReader(o.inFile)

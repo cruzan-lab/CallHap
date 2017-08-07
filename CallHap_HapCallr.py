@@ -794,23 +794,7 @@ if __name__ == "__main__":
     # Print initialization text
     print("Running CallHap on %s at %s:" % (time.strftime("%d/%m/%Y"),
                                             time.strftime("%H:%M:%S")))
-    CommandStr = "Command = python CallHap_HapCallr.py"
-    CommandStr += "--inputHaps %s " % o.knownHaps
-    CommandStr += "--inputFreqs %s " % o.inFreqs
-    CommandStr += "--poolSizes %s " % o.poolSizesFile
-    CommandStr += "--outPrefix %s " % o.outPrefix
-    CommandStr += "--processes %s " % o.numProcesses
-    CommandStr += "--numIterations %s " % o.numIterations
-    CommandStr += "--highResidual %s " % o.highResidual
-    if o.dropFinal:
-        CommandStr += "--dropFinal "
-    if o.genpopOutput:
-        CommandStr += "--genpop " 
-    if o.strOutput:
-        CommandStr += "--structure " 
-    CommandStr += "--numRandom %s " % o.numRand
-    CommandStr += "--numTopRSS %s" % o.topNum
-    print(CommandStr)
+    print("Command = python CallHap_VCF_Filt.py %s" % " ".join(sys.argv[1:]))
     
     # Generate poolSize related numbers:
     poolSizes = []
