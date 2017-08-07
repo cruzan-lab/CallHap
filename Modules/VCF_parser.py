@@ -183,8 +183,11 @@ class vcfReader:
         # Open the file
         inFile = open(inFileName, "rb")
         for line in inFile:
+            line = line.strip()
             # Check if this is a header line
-            if line[0:2] == "##":
+            if line == "":
+                pass
+            elif line[0:2] == "##":
                 # Parse the header line, in case that information is needed 
                 # later
                 
@@ -212,7 +215,7 @@ class vcfReader:
             elif line[0] == "#":
                 # Save the sample names
                 self.sampNames = line.strip().split()[9:]
-            else:
+            elif line[0] != "":
                 # Create a new VCF line with the data in this line
                 self.lines.append(vcfLine(line))
         if "contig" not in self.headInfo:
