@@ -126,7 +126,7 @@ o = parser.parse_args()
 
 print("Running CallHap VCF filter on %s at %s" % (time.strftime("%d/%m/%Y"),
                                                   time.strftime("%H:%M:%S")))
-
+pyCommand = "python CallHap_VCF_Filt.py %s" % " ".join(sys.argv[1:])
 print("Command = python CallHap_VCF_Filt.py %s" % " ".join(sys.argv[1:]))
 
 print("\nOpening files...")
