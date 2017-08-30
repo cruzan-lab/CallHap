@@ -179,6 +179,9 @@ class vcfReader:
         '''Initialize the reader and read the file'''
         self.headInfo = {}
         self.headInfo["headBlock"] = []
+        self.headInfo["FORMAT"] = {}
+        self.headInfo["contig"] = []
+        self.headInfo["INFO"] = []
         self.lines = []
         # Open the file
         inFile = open(inFileName, "rb")
