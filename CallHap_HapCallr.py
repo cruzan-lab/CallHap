@@ -794,7 +794,8 @@ if __name__ == "__main__":
     # Print initialization text
     print("Running CallHap on %s at %s:" % (time.strftime("%d/%m/%Y"),
                                             time.strftime("%H:%M:%S")))
-    print("Command = python CallHap_VCF_Filt.py %s" % " ".join(sys.argv[1:]))
+    CommandStr = "python CallHap_VCF_Filt.py %s" % " ".join(sys.argv[1:])
+    print("Command = %s" % CommandStr)
     
     # Generate poolSize related numbers:
     poolSizes = []
@@ -1209,13 +1210,19 @@ if __name__ == "__main__":
             "Pool,SNP,Observed Frequency,Predicted Frequency\n"
             )
         # Create predicted frequencies VCF output
+        #def __init__(self, inFileName, source, commandLine, baseHead, FormatBlock):
+        tmpVCF = vcfReader(o.inFreqs)
+
         output3 = vcfWriter(
             "%s_%s_PredFreqs.vcf" % (outPrefix, outTopoPtr), 
-            source="CallHaps_HapCallr_%s" % progVersion)
+            source="CallHaps_HapCallr_%s" % progVersion, 
+            commandLine=CommandStr, 
+            baseHead=tmpVCF.headInfo, 
+            FormatBlock=[tmpVCF.headInfo["FORMAT"]])
+            
         output3.writeHeader(poolNames)
         output3.setFormat("RF")
         
-        tmpVCF = vcfReader(o.knownHaps)
         output3.importLinesInfo(
             tmpVCF.getData("chrom", lineTarget="a"),
             tmpVCF.getData("pos", lineTarget="a"), 
