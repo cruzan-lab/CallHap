@@ -36,9 +36,10 @@ class vcfWriter:
         self.outputFile.write("##fileDate=%s\n" % time.strftime("%Y%m%d"))
         self.outputFile.write("##source=%s\n" % ("CallHap_VCF_parser"))
         self.outputFile.write("##commandline=\"%s\"" % commandLine)
-        self.outputFile.write("".join(baseHead["INFO"]))
-        self.outputFile.write("".join(FormatBlock))
-        self.outputFile.write("".join(baseHead["contig"]))
+        self.outputFile.write("\n".join(baseHead["INFO"]))
+        self.outputFile.write("\n".join(FormatBlock))
+        self.outputFile.write("\n".join(baseHead["contig"]))
+        if len(baseHead["contig"]) != 0: self.outputFile.write("\n")
     
     def writeHeader(self, sampleNames):
         
@@ -197,15 +198,22 @@ class vcfReader:
                         self.headInfo["INFO"] = []
                     linebins = wLine[1].strip("<>").split(",")
                     self.headInfo["INFO"].append(line)
-
                 elif "FORMAT" in wLine[0]:
                     if "FORMAT" not in self.headInfo:
                         self.headInfo["FORMAT"] = {}
+                    linebins = wLine[1].strip("<>").split(",")
                     self.headInfo["FORMAT"][linebins[0].split("=")[1]] = {
                         x.split("=")[0]: x.split("=")[1] for x in linebins
                         }
+                    if "FORMAT_BLOCK" not in self.headInfo:
+                        self.headInfo["Format_BLOCK"] = []
+                    self.headInfo["FORMAT_BLOCK"].append(line)
+                elif "contig" in wLine[0]:
+                    if "contig" not in self.headInfo:
+                        self.headInfo["contig"] = []
+                    self.headInfo["contig"].append(line)
                 elif "INFO" not in self.headInfo:
-                    self.headInfo["headBlock"].append(line)
+                    self.headInfo["headBlock"].append(line)    
                 elif wLine[0] not in self.headInfo:
                     self.headInfo[wLine[0]] = [line]
                 elif wLine[0] in self.headInfo:

@@ -136,21 +136,23 @@ inVCF = vcfReader(o.inFile)
 outHaps = open(o.outHaps, 'wb')
 outPools = open(o.outPools, 'wb')
 # Write VCF version lines to make sure this is a good VCF file
-outHaps.write("".join(inVCF.headInfo["headBlock"]))
+outHaps.write("\n".join(inVCF.headInfo["headBlock"]))
 outHaps.write("##fileDate=%s\n" % time.strftime("%Y%m%d"))
 outHaps.write("##source=%s\n" % ("CallHap_VCF_parser"))
 outHaps.write("##commandline=\"%s\"" % pyCommand)
 #outHaps.write("".join(inVCF.headInfo["INFO"]))
 outHaps.write('##FORMAT=<ID=GT,Number=1,Type=String,Description="Genotype">\n')
-outHaps.write("".join(inVCF.headInfo["contig"]))
+outHaps.write("\n".join(inVCF.headInfo["contig"]))
+if len(inVCF.headInfo["contig"]) != 0: outPools.write("\n")
 
-outPools.write("".join(inVCF.headInfo["headBlock"]))
+outPools.write("\n".join(inVCF.headInfo["headBlock"]))
 outPools.write("##fileDate2=%s\n" % time.strftime("%Y%m%d"))
 outPools.write("##source2=%s\n" % ("CallHap_VCF_parser"))
 outPools.write("##commandline2=\"%s\"" % pyCommand)
 #outPools.write("".join(inVCF.headInfo["INFO"]))
 outPools.write('##FORMAT=<ID=RF,Number=1,Type=Float,Description="Reference Frequency">\n')
-outPools.write("".join(inVCF.headInfo["contig"]))
+outPools.write("\n".join(inVCF.headInfo["contig"]))
+if len(inVCF.headInfo["contig"]) != 0: outPools.write("\n")
 
 # Write command into header lines of both output files
 
