@@ -203,14 +203,8 @@ class vcfReader:
                     self.headInfo["INFO"].append(line)
                 elif "FORMAT" in wLine[0]:
                     if "FORMAT" not in self.headInfo:
-                        self.headInfo["FORMAT"] = {}
-                    linebins = wLine[1].strip("<>").split(",")
-                    self.headInfo["FORMAT"][linebins[0].split("=")[1]] = {
-                        x.split("=")[0]: x.split("=")[1] for x in linebins
-                        }
-                    if "FORMAT_BLOCK" not in self.headInfo:
-                        self.headInfo["Format_BLOCK"] = []
-                    self.headInfo["FORMAT_BLOCK"].append(line)
+                        self.headInfo["FORMAT"] = []
+                    self.headInfo["FORMAT"].append(line)
                 elif "contig" in wLine[0]:
                     if "contig" not in self.headInfo:
                         self.headInfo["contig"] = []

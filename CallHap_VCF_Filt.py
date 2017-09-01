@@ -143,7 +143,8 @@ outHaps.write("##commandline=\"%s\"" % pyCommand)
 #outHaps.write("".join(inVCF.headInfo["INFO"]))
 outHaps.write('##FORMAT=<ID=GT,Number=1,Type=String,Description="Genotype">\n')
 outHaps.write("\n".join(inVCF.headInfo["contig"]))
-if len(inVCF.headInfo["contig"]) != 0: outPools.write("\n")
+if len(inVCF.headInfo["contig"]) > 0: 
+    outHaps.write("\n")
 
 outPools.write("\n".join(inVCF.headInfo["headBlock"]))
 outPools.write("##fileDate2=%s\n" % time.strftime("%Y%m%d"))
@@ -152,7 +153,8 @@ outPools.write("##commandline2=\"%s\"" % pyCommand)
 #outPools.write("".join(inVCF.headInfo["INFO"]))
 outPools.write('##FORMAT=<ID=RF,Number=1,Type=Float,Description="Reference Frequency">\n')
 outPools.write("\n".join(inVCF.headInfo["contig"]))
-if len(inVCF.headInfo["contig"]) != 0: outPools.write("\n")
+if len(inVCF.headInfo["contig"]) > 0: 
+    outPools.write("\n")
 
 # Write command into header lines of both output files
 

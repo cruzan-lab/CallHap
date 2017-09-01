@@ -1218,7 +1218,7 @@ if __name__ == "__main__":
             source="CallHaps_HapCallr_%s" % progVersion, 
             commandLine=CommandStr, 
             baseHead=tmpVCF.headInfo, 
-            FormatBlock=[tmpVCF.headInfo["FORMAT_BLOCK"]])
+            FormatBlock=[tmpVCF.headInfo["FORMAT"]])
             
         output3.writeHeader(poolNames)
         output3.setFormat("RF")
