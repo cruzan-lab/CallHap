@@ -1300,4 +1300,7 @@ if __name__ == "__main__":
         # Delete any remaining temporary files
         if not o.keepTmp:
             for deletionIter in xrange(o.numRand):
-                os.remove("%s_save%s.tmp" % (o.outPrefix, deletionIter))
+                try:
+                    os.remove("%s_save%s.tmp" % (o.outPrefix, deletionIter))
+                except OSError:
+                    pass

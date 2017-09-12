@@ -315,8 +315,12 @@ class vcfCell:
         else:
             self.data = {}
             for formatIter in xrange(len(FormatList)):
-                self.data[FormatList[formatIter]] = [float(x) 
-                    for x in cellbins[formatIter].split(",")]
+                if FormatList[formatIter] == "GT":
+                    self.data[FormatList[formatIter]] = [float(x) 
+                        for x in cellbins[formatIter].split("/")]
+                else:
+                    self.data[FormatList[formatIter]] = [float(x) 
+                        for x in cellbins[formatIter].split(",")]
 
     def getData(self, target=None):
         '''Retrieve data from the cell'''
