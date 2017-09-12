@@ -1303,4 +1303,8 @@ if __name__ == "__main__":
                 try:
                     os.remove("%s_save%s.tmp" % (o.outPrefix, deletionIter))
                 except OSError:
+<<<<<<< HEAD
                     pass
+=======
+                    pass
+>>>>>>> aa5af368cb49dbbc41c2de3f98a4c8ca2d5dfcbd
