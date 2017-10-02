@@ -193,9 +193,13 @@ def CallHapMain(OrderNumber, o, resume=False):
     snpFreqsTotal = np.sum(bestArray, axis=1) < bestArray.shape[1]
 
     # Create random SNP ordering
-    snpCombins3 = [[x] for x in range(numSNPs)]
-    random.shuffle(snpCombins3)
-    snpCombins3 = [y for y in sorted(snpCombins3, 
+    if o.ordered:
+        snpFreqsTotal = np.sum(SnpFreqs, axis=1)
+        snpCombins3 = [[x] for x in sorted(range(numSNPs), key = lambda x: snpFreqsTotal[x], reverse=True)]
+    else:
+        snpCombins3 = [[x] for x in range(numSNPs)]
+        random.shuffle(snpCombins3)
+        snpCombins3 = [y for y in sorted(snpCombins3, 
         key = lambda x: snpFreqsTotal[x[0]], reverse = True)]
     
     #Find base average RSS value
@@ -320,19 +324,22 @@ def CallHapMain(OrderNumber, o, resume=False):
                         srcHap = []
                         # Find the average SLSq for each pot hap set
                         newPotHaps2 = []
-                        intermediate = []
-                        for solverIter1 in xrange(len(newPotHaps)):
-                            intermediate.append(
-                                easyConcat(newPotHaps[solverIter1])
-                                )
-                        cleanedIntermediate = [x for x in intermediate 
-                                               if not x is None]                
-                        func = partial(massFindFreqs, inSnpFreqs=SnpFreqs, 
-                                       p=poolSizes)
-                        result = []
-                        for solverIter in xrange(len(cleanedIntermediate)):
-                            result.append(func(cleanedIntermediate[solverIter]))
-                        tmpSols = [x for x in result if not x is None]
+                        if o.ordered:
+                            tmpSols = easy_parallizeLS(newPotHaps, o.numProcesses, SnpFreqs, o.poolSize)
+                        else:
+                            intermediate = []
+                            for solverIter1 in xrange(len(newPotHaps)):
+                                intermediate.append(
+                                    easyConcat(newPotHaps[solverIter1])
+                                    )
+                            cleanedIntermediate = [x for x in intermediate 
+                                                   if not x is None]                
+                            func = partial(massFindFreqs, inSnpFreqs=SnpFreqs, 
+                                           p=poolSizes)
+                            result = []
+                            for solverIter in xrange(len(cleanedIntermediate)):
+                                result.append(func(cleanedIntermediate[solverIter]))
+                            tmpSols = [x for x in result if not x is None]
                         
                         # Determine which solutions (and thus haplotypes) produce 
                         # an improvement in RSS value
@@ -784,6 +791,10 @@ if __name__ == "__main__":
         dest="keepTmp", 
         help="Do not delete temporary files after finishing"
         )
+    parser.add_argument('--deterministic', '-d', 
+                        dest="ordered"
+                        action="store_true", 
+                        help="Use deterministic SNP ordering.  Ignores --numRandom.  ")
     o = parser.parse_args()
     
     # version output
@@ -991,24 +1002,27 @@ if __name__ == "__main__":
         exit()
 
 
-    if o.resume == True:
-        pool = Pool(processes=o.numProcesses, maxtasksperchild=10)
-        func = partial(CallHapMain, o=o, resume=True)
-        funcIterable = range(o.numRand)
-        result = pool.map(func, funcIterable)
-        cleaned = [x for x in result if not x is None]
-        # not optimal but safe
-        pool.close()
-        pool.join()
-    else:
-        pool = Pool(processes=o.numProcesses, maxtasksperchild=10)
-        func = partial(CallHapMain, o=o)
-        funcIterable = range(o.numRand)
-        result = pool.map(func, funcIterable)
-        cleaned = [x for x in result if not x is None]
-        # not optimal but safe
-        pool.close()
-        pool.join()
+    if o.ordered:
+       result = CallHapMain(0, o=o, resume=False)
+   else:
+       if o.resume == True:
+            pool = Pool(processes=o.numProcesses, maxtasksperchild=10)
+            func = partial(CallHapMain, o=o, resume=True)
+            funcIterable = range(o.numRand)
+            result = pool.map(func, funcIterable)
+            cleaned = [x for x in result if not x is None]
+            # not optimal but safe
+            pool.close()
+            pool.join()
+        else:
+            pool = Pool(processes=o.numProcesses, maxtasksperchild=10)
+            func = partial(CallHapMain, o=o)
+            funcIterable = range(o.numRand)
+            result = pool.map(func, funcIterable)
+            cleaned = [x for x in result if not x is None]
+            # not optimal but safe
+            pool.close()
+            pool.join()
 
     ## Get initial haplotypes / SNP frequencies
     # Load haplotypes
