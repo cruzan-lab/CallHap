@@ -792,7 +792,7 @@ if __name__ == "__main__":
         help="Do not delete temporary files after finishing"
         )
     parser.add_argument('--deterministic', '-d', 
-                        dest="ordered"
+                        dest="ordered",
                         action="store_true", 
                         help="Use deterministic SNP ordering.  Ignores --numRandom.  ")
     o = parser.parse_args()
@@ -1003,9 +1003,9 @@ if __name__ == "__main__":
 
 
     if o.ordered:
-       result = CallHapMain(0, o=o, resume=False)
-   else:
-       if o.resume == True:
+        result = CallHapMain(0, o=o, resume=False)
+    else:
+        if o.resume == True:
             pool = Pool(processes=o.numProcesses, maxtasksperchild=10)
             func = partial(CallHapMain, o=o, resume=True)
             funcIterable = range(o.numRand)
