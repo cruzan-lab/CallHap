@@ -1003,7 +1003,8 @@ if __name__ == "__main__":
 
 
     if o.ordered:
-        result = CallHapMain(0, o=o, resume=False)
+        result = [CallHapMain(0, o=o, resume=False)]
+        cleaned = [x for x in result if not x is None]
     else:
         if o.resume == True:
             pool = Pool(processes=o.numProcesses, maxtasksperchild=10)
