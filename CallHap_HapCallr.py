@@ -325,7 +325,7 @@ def CallHapMain(OrderNumber, o, resume=False):
                         # Find the average SLSq for each pot hap set
                         newPotHaps2 = []
                         if o.ordered:
-                            tmpSols = easy_parallizeLS(newPotHaps, o.numProcesses, SnpFreqs, o.poolSize)
+                            tmpSols = easy_parallizeLS(newPotHaps, o.numProcesses, SnpFreqs, poolSizes)
                         else:
                             intermediate = []
                             for solverIter1 in xrange(len(newPotHaps)):
