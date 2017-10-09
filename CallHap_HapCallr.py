@@ -753,7 +753,8 @@ if __name__ == "__main__":
         dest="numRand", 
         help="The number of random orders to use for haplotype creation.  \
               More orders will yield more accurate results, but will also \
-              take longer.  "
+              take longer.  ", 
+        default=1
         )
     parser.add_argument(
         '--numTopRSS', 
@@ -796,7 +797,8 @@ if __name__ == "__main__":
                         action="store_true", 
                         help="Use deterministic SNP ordering.  Ignores --numRandom.  ")
     o = parser.parse_args()
-    
+    if o.ordered:
+        o.numRand = 1
     # version output
     if o.v:
         print(progVersion)
@@ -1156,7 +1158,7 @@ if __name__ == "__main__":
     finTopos = []
     finDecHaps = []
     print("Extract solutions from best RSS values")
-    for convPointer in xrange(currPointer - 1):
+    for convPointer in xrange(currPointer - (1 if currPointer > 1 else 0)):
         # Convert haplotype set to list of numpy arrays
         finTopos.append(
             [DecHapToNPHap(UniqueTopologies[RssPointers[convPointer]][x]) 
