@@ -77,7 +77,7 @@ KnownNames.extend(newHapNames)
 # Write out haplotypes
 tmpVCF = vcfReader(o.knownHaps)
 output3 = vcfWriter(
-    "%s_base_PredFreqs.vcf" % (outPrefix), 
+    o.outFile, 
     source="CallHaps_HapCallr_%s" % progVersion, 
     commandLine=CommandStr, 
     baseHead=tmpVCF.headInfo, 
