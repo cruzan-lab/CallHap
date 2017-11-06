@@ -36,9 +36,12 @@ class vcfWriter:
         self.outputFile.write("##fileDate=%s\n" % time.strftime("%Y%m%d"))
         self.outputFile.write("##source=%s\n" % ("CallHap_VCF_parser"))
         self.outputFile.write("##commandline=\"%s\"" % commandLine)
-        self.outputFile.write("\n".join(baseHead["INFO"]))
-        self.outputFile.write("\n".join(FormatBlock))
-        self.outputFile.write("\n".join(baseHead["contig"]))
+        if baseHead["INFO"] != []:
+            self.outputFile.write("\n".join(baseHead["INFO"]))
+        if FormatBlock != []:
+            self.outputFile.write("\n".join(FormatBlock))
+        if baseHead["contig"] != []:
+            self.outputFile.write("\n".join(baseHead["contig"]))
         if len(baseHead["contig"]) != 0: self.outputFile.write("\n")
     
     def writeHeader(self, sampleNames):
