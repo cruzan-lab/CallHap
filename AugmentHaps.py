@@ -1,10 +1,3 @@
-# -*- coding: utf-8 -*-
-"""
-Created on Fri May 19 10:34:18 2017
-
-@author: Brendan Kohrn
-"""
-
 #AugmentHaps.py
 # Import necessary modules
 import numpy as np
@@ -78,10 +71,10 @@ KnownNames.extend(newHapNames)
 tmpVCF = vcfReader(o.knownHaps)
 output3 = vcfWriter(
     o.outFile, 
-    source="CallHaps_HapCallr_%s" % progVersion, 
-    commandLine=CommandStr, 
+    source="AugmentHaploypes.py", 
+    commandLine="", 
     baseHead=tmpVCF.headInfo, 
-    FormatBlock=[tmpVCF.headInfo["FORMAT"]])
+    FormatBlock=tmpVCF.headInfo["FORMAT"])
 output3.writeHeader(KnownNames)
 output3.setFormat("GT")
 
