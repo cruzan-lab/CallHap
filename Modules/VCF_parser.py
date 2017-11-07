@@ -35,7 +35,7 @@ class vcfWriter:
         self.outputFile.write("".join(baseHead["headBlock"]))
         self.outputFile.write("##fileDate=%s\n" % time.strftime("%Y%m%d"))
         self.outputFile.write("##source=%s\n" % ("CallHap_VCF_parser"))
-        self.outputFile.write("##commandline=\"%s\"" % commandLine)
+        self.outputFile.write("##commandline=\"%s\"\n" % commandLine)
         if baseHead["INFO"] != []:
             self.outputFile.write("\n".join(baseHead["INFO"]))
         if FormatBlock != []:
