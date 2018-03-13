@@ -750,12 +750,12 @@ if __name__ == "__main__":
         action="store_true",
         help="Use deterministic SNP ordering. Cannot specify --numRandom")
     parser.add_argument(
-        '--randHighFreq',
+        '--randHighFreq', '-a'
         dest="confirm",
         action="store_true",
         help="Generate multiple outcomes by randomizing the most frequent SNPs")
     parser.add_argument(
-        '-n',
+        '-n', '--numTop', 
         type=int,
         action="store",
         dest="numSNPs",
