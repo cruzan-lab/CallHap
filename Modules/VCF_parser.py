@@ -1,9 +1,10 @@
 #!/usr/bin/env python
 # CallHap IO.py
 # By Brendan Kohrn
-# 3/21/2017
 #
-# This is the VCF parser used by all CallHap specific programs
+# VCF parser for all CallHap specific programs 
+
+
 import numpy as np
 import time
 
@@ -15,17 +16,7 @@ class vcfFile:
             return(vcfWriter(inFileName,source))
             
 class vcfWriter:
-    '''Class to write VCF output based on an imput template.  
-    Call order:
-    a = vcfWriter(inName, source)
-    a.writeHeader(sampNames)
-    a.setFormat(formatStr)
-    a.importLinesInfo(Chroms, Poss, Refs, Alts, Quals)
-    for sampleName in sampNames:       
-        a.importSampleValues(inValues, sampleName)
-    a.writeSamples()
-    a.close()
-    '''
+    '''Class to write VCF output based on an input template'''
     def __init__(self, inFileName, source, commandLine, baseHead, FormatBlock):
         '''Initialize the class'''
         # Open an output file
@@ -45,8 +36,7 @@ class vcfWriter:
         if len(baseHead["contig"]) != 0: self.outputFile.write("\n")
     
     def writeHeader(self, sampleNames):
-        
-        # Write column nanes line
+        # Write column names
         self.outputFile.write("#CHROM\tPOS\tID\tREF\tALT\tQUAL\t")
         self.outputFile.write("FILTER\tINFO\tFORMAT\t")
         self.outputFile.write("%s\n" % "\t".join(sampleNames))
@@ -60,7 +50,7 @@ class vcfWriter:
         self.totalCols = len(sampleNames)
         
     def setFormat(self, formatStr):
-        # Set the format string for outputs.
+        # Set the format string for outputs
         self.formatStr = formatStr
         
     def importInfo(self, InfoField, InfoValues):
@@ -125,14 +115,12 @@ class vcfWriter:
     
     def importSampleValues(self, inValues, sampleName):
         '''Import cell data for one column of a VCF file'''
-        # Old debugging text
         if len(inValues) != self.numRows + 1:
             print(type(inValues))
             print(len(inValues))
             print(inValues)
             print(self.numRows)
             raise Exception
-        # Fill the column
         self.outputCols[sampleName] = inValues[:-1]
         self.colsFilled += 1
         
@@ -153,7 +141,6 @@ class vcfWriter:
     
     def writeSamples(self):
         '''Write the VCF output to file'''
-        # Throw an error if not all columns have been filled
         if self.colsFilled != self.totalCols:
             raise Exception
         else:
@@ -169,8 +156,7 @@ class vcfWriter:
                 outLine += "%s\t" % self.formatStr
                 outLine += "%s\n" % "\t".join(
                     [str(self.outputCols[self.sampleNames[x]][lineNum])
-                     for x in xrange(len(self.sampleNames))]
-                     )
+                     for x in xrange(len(self.sampleNames))])
                 self.outputFile.write(outLine)
     
     def close(self):
@@ -195,8 +181,7 @@ class vcfReader:
             if line == "":
                 pass
             elif line[0:2] == "##":
-                # Parse the header line, in case that information is needed 
-                # later
+                # Parse the header line, in case that information is needed later
                 
                 wLine = line.strip("#").split("=", 1)
                 if "INFO" in wLine[0]:
@@ -232,8 +217,7 @@ class vcfReader:
         inFile.close()
     
     def getData(self, target, lineTarget = None, sampTarget = None):
-        '''Retrieve data about the VCF file from a specific line or information
-         column'''
+        '''Retrieve data about the VCF file from a specific line or information column'''
         if target in ("chrom", "pos", "ID", "ref", "alt", 
                       "qual", "filt","info", "form"):
             if lineTarget == 'a':

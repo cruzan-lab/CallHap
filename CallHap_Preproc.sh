@@ -2,24 +2,6 @@
 
 #This is a template for all steps prior to the CallHap programs
 
-# Version 0.01.22
-# 
-# Change Log:
-#     V0.01.24
-#          Fixed date/time reporting
-#     V0.01.13
-#          Raised realignment limit for indel_realigner
-#          Cleaned up unnecessary lines
-#     V0.01.12
-#          Removed samtools reheader as it seemed to be caushing errors and may no longer be necessary.
-#     V0.01.11
-#          Moved reference identification to being defined per-sample
-#          Matches ConfigCreator_0.1.2
-#     V0.01.10
-#          Removed deduplication to preserve depth in pools.  
-#          Also changed program to be able to run se and pe files at the same time for future convenience.
-#             This feature may not be necessary, but for the purposes of running current data sets, it will remain implemented.  
-
 # Locations of various programs:
 # Config file with paths to the programs
 source $1
@@ -27,21 +9,20 @@ source $1
 source $2
 
 # Good sorted header for later header replacement
-# This will eventually be in the config file.
 auxileryHdr=LasburSCircHeadr.sam
 startDate=$(date)
-echo "Running CallHap Preprocessing using program config $1 and run config $2 at $startDate.  "
+echo "Running CallHap Preprocessing using program config $1 and run config $2 at $startDate"
 for sampleIter in $(seq 0 $(($NumberSamples-1)) ); do
     if [ "${Mode[$sampleIter]}" = "pe" ]; then
         # PE Processing
         echo "Preprocessing"
         # Adapter trimming:
-        nice -n 5 $cutadaptPath -a $inAdapter1 -A $inAdapter2 -o ${RGSMs[$sampleIter]}_R1_at.fastq -p ${RGSMs[$sampleIter]}_R2_at.fastq ${inputRead1[$sampleIter]} ${inputRead2[$sampleIter]}
+        nice -n 5 $cutadaptPath -a $inAdapter1 -A $inAdapter2 -o ${RGSMs[$sampleIter]}_R1_at.fastq.gz -p ${RGSMs[$sampleIter]}_R2_at.fastq.gz ${inputRead1[$sampleIter]} ${inputRead2[$sampleIter]}
         # Quality trimming:
-        nice -n 5 $sicklePath pe -f ${RGSMs[$sampleIter]}_R1_at.fastq -r ${RGSMs[$sampleIter]}_R2_at.fastq -o ${RGSMs[$sampleIter]}_R1_at_qt.fastq -p ${RGSMs[$sampleIter]}_R2_at_qt.fastq -t sanger -s ${RGSMs[$sampleIter]}_extras.fastq -q $minBaseQuality -g
+        nice -n 5 $sicklePath pe -f ${RGSMs[$sampleIter]}_R1_at.fastq.gz -r ${RGSMs[$sampleIter]}_R2_at.fastq.gz -o ${RGSMs[$sampleIter]}_R1_at_qt.fastq.gz -p ${RGSMs[$sampleIter]}_R2_at_qt.fastq.gz -t sanger -s ${RGSMs[$sampleIter]}_extras.fastq.gz -q $minBaseQuality -g
         echo "Aligning"
         # Alignment with BWA:
-        nice -n 5 $bwaPath mem -M ${Refs[$sampleIter]} ${RGSMs[$sampleIter]}_R1_at_qt.fastq ${RGSMs[$sampleIter]}_R2_at_qt.fastq > ${RGSMs[$sampleIter]}_pe.sam
+        nice -n 5 $bwaPath mem -M ${Refs[$sampleIter]} ${RGSMs[$sampleIter]}_R1_at_qt.fastq.gz ${RGSMs[$sampleIter]}_R2_at_qt.fastq.gz > ${RGSMs[$sampleIter]}_pe.sam
         # Sort the alignment:
         # Also filter out unmapped reads
         echo "Sorting"
@@ -56,7 +37,7 @@ for sampleIter in $(seq 0 $(($NumberSamples-1)) ); do
         echo "Adding Readgroups"
         nice -n 5 java -jar $picardPath AddOrReplaceReadGroups INPUT=${RGSMs[$sampleIter]}_pe.sort.bam OUTPUT=${RGSMs[$sampleIter]}_pe.sort.rg.bam RGID=${RGSMs[$sampleIter]} RGLB=${RGLBs[$sampleIter]} RGPL=$inRGPL RGPU=${RGPUs[$sampleIter]} RGSM=${RGSMs[$sampleIter]}
         $samtoolsPath index ${RGSMs[$sampleIter]}_pe.sort.rg.bam
-        # Perform local realingment around indels:
+        # Perform local realignment around indels:
         nice -n 5 java -jar $GATKpath -T RealignerTargetCreator -R ${Refs[$sampleIter]} -I ${RGSMs[$sampleIter]}_pe.sort.rg.bam -o ${RGSMs[$sampleIter]}_pe.sort.rg.intervals
         nice -n 5 java -jar $GATKpath -T IndelRealigner -R ${Refs[$sampleIter]} -I ${RGSMs[$sampleIter]}_pe.sort.rg.bam -targetIntervals ${RGSMs[$sampleIter]}_pe.sort.rg.intervals -o ${RGSMs[$sampleIter]}_pe.sort.rg.ra.bam -dt NONE --maxReadsForRealignment 200000
         rm *.fastq.gz
@@ -87,7 +68,7 @@ for sampleIter in $(seq 0 $(($NumberSamples-1)) ); do
         echo "Adding Readgroups"
         nice -n 5 java -jar $picardPath AddOrReplaceReadGroups INPUT=${RGSMs[$sampleIter]}_se.sort.bam OUTPUT=${RGSMs[$sampleIter]}_se.sort.rg.bam RGID=${RGSMs[$sampleIter]} RGLB=${RGLBs[$sampleIter]} RGPL=$inRGPL RGPU=${RGPUs[$sampleIter]} RGSM=${RGSMs[$sampleIter]} CREATE_INDEX=true
         $samtoolsPath index ${RGSMs[$sampleIter]}_se.sort.rg.bam
-        # Perform local realingment around indels:
+        # Perform local realignment around indels:
         nice -n 5 java -jar $GATKpath -T RealignerTargetCreator -R ${Refs[$sampleIter]} -I ${RGSMs[$sampleIter]}_se.sort.rg.bam -o ${RGSMs[$sampleIter]}_se.sort.rg.intervals 
         nice -n 5 java -jar $GATKpath -T IndelRealigner -R ${Refs[$sampleIter]} -I ${RGSMs[$sampleIter]}_se.sort.rg.bam -targetIntervals ${RGSMs[$sampleIter]}_se.sort.rg.intervals -o ${RGSMs[$sampleIter]}_se.sort.rg.ra.bam -dt NONE --maxReadsForRealignment 200000
         rm *.fastq.gz
@@ -99,4 +80,4 @@ for sampleIter in $(seq 0 $(($NumberSamples-1)) ); do
 done
 
 endDate=$(date)
-echo "Run ran from $startDate to $endDate"
+echo "Start time: $startDate to End time: $endDate"

@@ -1,7 +1,6 @@
 #!/usr/bin/env python
 # CallHap General.py
 # By Brendan Kohrn
-# 3/20/2017
 #
 # This script contains general functions for CallHap
 
@@ -9,14 +8,13 @@ import numpy as np
 import math
 import decimal as dec
 
+
 def comparePotHaps(potHapSetA, potHapSetB, numInitialHaps):
-    '''Check if all haplotypes in two haplotype sets are the same'''
-    # If two haplotype sets are different lengths, they are different
+    '''Check if all haplotypes in two haplotype sets are the same using length'''
     if len(potHapSetA) != len(potHapSetB):
         return(False)
     else:
-        return(all(np.all(x==y) for x,y in zip(potHapSetA[numInitialHaps:], 
-                                               potHapSetB[numInitialHaps:])))
+        return(all(np.all(x==y) for x,y in zip(potHapSetA[numInitialHaps:], potHapSetB[numInitialHaps:])))
 
 def average(inList): 
     ''' Take the average value of a list'''
@@ -35,8 +33,7 @@ def npDecZeros(rows, cols=0):
         outArray = np.zeros((rows,cols), dtype=dec.Decimal)
         for rowIter in xrange(rows):
             for colIter in xrange(cols):
-                outArray[rowIter,colIter] = dec.Decimal(outArray[rowIter, 
-                                                                 colIter])
+                outArray[rowIter,colIter] = dec.Decimal(outArray[rowIter, colIter])
     
     return(outArray)
 
@@ -49,7 +46,7 @@ def npToDecNp(inArray):
     return(outArray)
 
 def copy(inArr, elmntType = "int"):
-    '''Copy a list (particularly of numpy arrays).'''
+    '''Copy a list of NumPy arrays'''
     if elmntType == "nparray":
         return([np.copy(x) for x in inArr])
     else:
@@ -105,13 +102,11 @@ def FindLegalSnpsByNetwork(inHaps, testHapIdx):
     notClosest = []
     numSnps = len(inHaps[0])
     distances=[numSnps - np.sum(a==inHaps[testHapIdx]) for a in inHaps]
-    # Determine the distance between this haplotype and every other haplotype 
-    # in number of SNPs different
-    # Sort by closeness
+    # Determine the distance between this haplotype and every other haplotype
+    # in terms of number of SNPs
     distIters = sorted(range(len(distances)), key=lambda x: distances[x])
     # For each haplotype, from closest to furthest away, check if it shares a 
-    # difference in the target SNP 
-    # with another haplotype in closestHaps
+    # difference in the target SNP with another haplotype in closestHaps
     for hapIter in distIters:
         if hapIter != testHapIdx:
             if closestHaps == []:
@@ -156,15 +151,13 @@ def ValidSnpsFromPhylogeny(inHaps, numInitHaps):
                   if countDiffs[x][a][b] == True] 
                   for a in xrange(len(countDiffs[x]))] 
                   for x in xrange(len(countDiffs))]
-    # Find adgacend haplotypes for each haplotype
+    # Find adjacent haplotypes for each haplotype
     validSnps = []
     nextHaps = []
     for hap in xrange(len(inHaps)):
         nextHaps.append([])
         validSnps.append([])
-        minDistOrder = sorted(range(len(inHaps)), 
-                              key=lambda x: len(diffSnps[hap][x]))
-#        print("DEBUG")
+        minDistOrder = sorted(range(len(inHaps)), key=lambda x: len(diffSnps[hap][x]))
         for hap2 in minDistOrder:
             if hap != hap2:
 
@@ -188,9 +181,7 @@ def ValidSnpsFromPhylogeny(inHaps, numInitHaps):
     for hap in xrange(numInitHaps):
         nextHaps2.append([])
         validSnps2.append([])
-        minDistOrder = sorted(range(numInitHaps), 
-                              key=lambda x: len(diffSnps[hap][x]))
-#        print("DEBUG")
+        minDistOrder = sorted(range(numInitHaps), key=lambda x: len(diffSnps[hap][x]))
         for hap2 in minDistOrder:
             if hap != hap2:
 

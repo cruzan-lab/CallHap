@@ -1,25 +1,24 @@
 #!/usr/bin/env python
 # CallHap IO.py
 # By Brendan Kohrn
-# 3/20/2017
 #
-# This script contains functions relating to input processing of matrixes
-# As well as functions relating to some specific output formats.
+# This script contains functions relating to input processing of matrices
+# As well as functions relating to some specific output formats
 
 import numpy as np
-from VCF_parser import *
+from Modules.VCF_parser import *
+
 
 def ExtendHaps(origHaps):
-    '''Function to add "Dummy" SNP to array; designed to ensure that all 
-    haplotype frequencies sum to 20'''
+    '''Function to add SNPs to ensure that all haplotype frequencies sum to 20'''
     allHapsToArray = [origHaps]
     allHapsToArray.extend([np.array([[1 
         for x in xrange(int(origHaps.shape[1]))]])])
     return(np.concatenate(allHapsToArray, axis=0))
 
+
 def UniqueHaps(inHaps, inNames):
-    '''Find unique haplotypes and reduce the haplotypes and their names; 
-    still needs some work to fix merged names'''
+    '''Find unique haplotypes and reduce the haplotypes and their names'''
     remove = [False for n in range(int(inHaps.shape[1]))]
     for iterx in range(int(inHaps.shape[1])-1):
         for y in range(iterx+1, inHaps.shape[1]):
@@ -30,6 +29,7 @@ def UniqueHaps(inHaps, inNames):
     names = [inNames[iterx] for iterx in range(len(inNames)) 
         if not remove[iterx]]
     return(np.delete(inHaps, toRemove, 1), names)
+
 
 def outputProt(UniqueNames, bestFreqs, bestArray, poolSize, 
                poolNames, population, outFile):
@@ -59,6 +59,7 @@ def outputProt(UniqueNames, bestFreqs, bestArray, poolSize,
             str(indivHaps[individual])])
         outFile.write("%s\n" % outLine)
 
+
 def NexusWriter(myHapNames, finSolution, numSNPs, outPrefix, outIdx, 
                 knownHaps, snpsToRemove=[]):
     '''Output a NEXUS file for a given solution'''
@@ -79,8 +80,7 @@ def NexusWriter(myHapNames, finSolution, numSNPs, outPrefix, outIdx,
         if line.getData("pos") not in snpsToRemove:
             refAlleles.append(line.getData("ref"))
             altAlleles.append(line.getData("alt")[0])
-    # Create the output haplotype sequence by concatenating the relevant 
-    #alleles for each SNP, for each haplotype
+    # Create the output haplotype sequence by concatenating the relevant alleles for each SNP, for each haplotype
     for hap in xrange(len(myHapNames)):
         outFile3.write("%s\t%s\n" % (myHapNames[hap], "".join([refAlleles[x] 
             if finSolution[x, hap] == 1 else altAlleles[x] 

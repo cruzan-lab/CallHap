@@ -5,7 +5,7 @@ def checkSnps(inSnps, inNumSnps, inNumPools, inPoolSize, inThreshold = 0.99):
     # Calculate correlation coefficients
     correlations = np.corrcoef(inSnps)
     corrThreshold = inThreshold
-    #For each SNP, check if any other SNP is correlated to it
+    # For each SNP, check if any other SNP is correlated
     snpsToQuestion = []
     for snp1 in xrange(inNumSnps):
         isCorrelated = False
@@ -14,7 +14,7 @@ def checkSnps(inSnps, inNumSnps, inNumPools, inPoolSize, inThreshold = 0.99):
                 if correlations[snp1, snp2] >= corrThreshold:
                     isCorrelated = True
         if isCorrelated == False:
-            # figure out how many pools it is in
+            # find how many pools contain this SNP
             containingPools = 0
             for pool in xrange(inNumPools):
                 if inSnps[snp1,pool] <= 1 - (1/inPoolSize):

@@ -1,6 +1,5 @@
 #!/bin/python
 # CallHap Config Creator
-# Version 0.1.3
 # by Brendan Kohrn
 
 
@@ -8,15 +7,46 @@ from argparse import ArgumentParser
 import time
 
 parser = ArgumentParser()
-parser.add_argument("--input", action = 'store', dest='readgroupTemplate', required=True, help="a csv file containing the input files and all information for readgroup creation")
-parser.add_argument("--adapt1", action='store', dest='adapt1', required=True, help='Forward adaptor sequence')
-parser.add_argument("--adapt2", action='store', dest='adapt2', required=True, help='Referse adaptor sequence')
-parser.add_argument("--sequencer", action='store', dest='RGPL', required=True, help="What type of sequencer did this data come from (e.g. Illumina)?")
 parser.add_argument("--minBaseQual", action='store', dest='minBaseQual', default="20")
-parser.add_argument("--minReadQual", action='store', dest='minReadQual', default="20")
-#parser.add_argument("--minDepth", action='store', dest='minDepth', default="1000")
-#parser.add_argument("--minSampDepth", action='store', dest='minSampDepth', default=200000)
-parser.add_argument("--runID", action='store', dest='runID', required=True, help="An identifier for this run; no spaces")
+parser.add_argument(
+    "--input", 
+    action = 'store', 
+    dest='readgroupTemplate', 
+    required=True, 
+    help="a csv file containing the input files and all information for readgroup creation")
+parser.add_argument(
+    "--adapt1", 
+    action='store', 
+    dest='adapt1', 
+    required=True, 
+    help='Forward adaptor sequence')
+parser.add_argument(
+    "--adapt2", 
+    action='store', 
+    dest='adapt2', 
+    required=True, 
+    help='Referse adaptor sequence')
+parser.add_argument(
+    "--sequencer", 
+    action='store', 
+    dest='RGPL', 
+    required=True, 
+    help="What type of sequencer did this data come from (e.g. Illumina)?")
+parser.add_argument(
+    "--minBaseQual", 
+    action='store', 
+    dest='minBaseQual', 
+    default="20")
+parser.add_argument(
+    "--minReadQual", 
+    action='store', 
+    dest='minReadQual', 
+    default="20")
+parser.add_argument(
+    "--runID", 
+    action='store', 
+    dest='runID', 
+    required=True, help="An identifier for this run; no spaces")
 o = parser.parse_args()
 
 print("Running CallHap Config Creator on %s at %s.  " % (time.strftime("%d/%m/%Y"),time.strftime("%H:%M:%S")))
@@ -27,7 +57,6 @@ outFile = open("%s_config.sh" % o.runID, 'wb')
 outFile.write("#!/bin/bash\n\n")
 outFile.write("# Parameters:\n")
 outFile.write("# Mode should be either 'pe' or 'se'\n")
-#outFile.write("Mode=%s\n" % o.mode)
 
 firstLine = True
 file1s=[]
@@ -76,8 +105,6 @@ outFile.write("inRGPL=%s\n" % o.RGPL)
 outFile.write("Mode=(%s)\n" % (' '.join(Modes)))
 outFile.write("minReadQuality=%s\n" % o.minReadQual)
 outFile.write("minBaseQuality=%s\n" % o.minBaseQual)
-#outFile.write("maxSampleDepth=%s\n" % o.minSampDepth)
-#outFile.write("minDepth=%s\n" % o.minDepth)
 outFile.write("runID=%s\n" % o.runID)
 outFile.write("inAdapter1=%s\n" % o.adapt1)
 outFile.write("inAdapter2=%s\n" % o.adapt2)
