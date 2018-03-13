@@ -7,7 +7,6 @@ from argparse import ArgumentParser
 import time
 
 parser = ArgumentParser()
-parser.add_argument("--minBaseQual", action='store', dest='minBaseQual', default="20")
 parser.add_argument(
     "--input", 
     action = 'store', 
