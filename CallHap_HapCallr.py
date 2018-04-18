@@ -549,7 +549,7 @@ def CallHapMain(OrderNumber, o, resume=False):
                 if haplotypeIter >= len(UniqueNames):
                     # For new haplotypes, build a new haplotype name, keeping 
                     # track of iteration and new haplotype number
-                    myHapNames.append("NewHap_%s.%s" % (str(iteration).zfill(2), str(newHapNumber).zfill(2)))
+                    myHapNames.append("NewHap_%s" % (int(haplotypeIter + 1)))
                     newHapNumber += 1
                 else:
                     # For known haplotypes, use the original haplotype name
