@@ -11,7 +11,9 @@ V0.02.01
 		Generate multiple output files by randomly generating a specified number of highest frequency SNPs before building haplotypes
 		Intended use of confirming deterministic output
 	Misc. language/grammar updates; code cleaning and removed unnecessary functions
-
+	Add allele count output file to VCF_Filt.py
+	Update new haplotype names
+	
 V0.01.24
 	Fixed date/time reporting
 
