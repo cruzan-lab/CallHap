@@ -22,6 +22,7 @@ VCF_filt=/vol/share/cruzan_lab/bioinformatics/programs/CallHap/CallHap-master_11
 ##CallHap=/vol/share/cruzan_lab/bioinformatics/programs/CallHap/CallHap-master/CallHap_HapCallr.py
 
 #SNP Filtering at 100 depth incriments.
+#it is recommended to check the depth of library and pool reads before increasing depth parameter to avoid dropping samples 
 #quality score is currently set to 0.
 python "$VCF_filt" -i "$samplename".vcf -o "$samplename"_d300q"$q"_Haps.vcf -O "$samplename"_d300q"$q"_Pools.vcf -n "$SSL" -N "$PLs" -d 300 -q "$q" -p "$pools" --dropLowDepth 100
 python "$VCF_filt" -i "$samplename".vcf -o "$samplename"_d400q"$q"_Haps.vcf -O "$samplename"_d400q"$q"_Pools.vcf -n "$SSL" -N "$PLs" -d 400 -q "$q" -p "$pools" --dropLowDepth 100

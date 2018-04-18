@@ -750,7 +750,7 @@ if __name__ == "__main__":
         action="store_true",
         help="Use deterministic SNP ordering. Cannot specify --numRandom")
     parser.add_argument(
-        '--randHighFreq', '-a'
+        '--randHighFreq', '-a',
         dest="confirm",
         action="store_true",
         help="Generate multiple outcomes by randomizing the most frequent SNPs")
@@ -953,7 +953,6 @@ if __name__ == "__main__":
             funcIterable = range(o.numRand)
             result = pool.map(func, funcIterable)
             cleaned = [x for x in result if not x is None]
-            # not optimal but safe
             pool.close()
             pool.join()
 
@@ -1079,9 +1078,8 @@ if __name__ == "__main__":
         print("Finding haplotype names...")
         for haplotypeIter in xrange(finSolution.shape[1]):
             if haplotypeIter >= len(UniqueNames):
-                # For new haplotypes, build a new haplotype name, keeping track
-                # of iteration and new haplotype number
-                myHapNames.append("NewHap_%s" % (str(finDecHaps[outTopoItr][haplotypeIter])))
+                # name new haplotypes
+                myHapNames.append("NewHap_%s" % int(haplotypeIter))
             else:
                 # For known haplotypes, use the original haplotype name
                 myHapNames.append(UniqueNames[haplotypeIter])
